@@ -1,4 +1,6 @@
-# Edstellar Conflict Checker
+# SEO Knowledge Base — Conflict Checker (with GSC)
+
+> **Fork notice.** This repo (`Surya8991/SEO-KnowledgeBase-with-GSC`) is a **baseline snapshot** duplicated from an upstream project and reset to the state *before* the Google Search Console integration was removed — hence "with GSC". History was squashed to a single baseline commit. It is **not currently deployed**: any `<your-project>.vercel.app` URL or `GOOGLE_REDIRECT_URI` below is a placeholder — set your own after you deploy. Do **not** push to, clone-and-modify, or reuse the deployment of the upstream original.
 
 Detect content conflicts (duplication / SEO cannibalization) **before** publishing a blog, course, or page — with a 0–100% conflict score, Google Search Console performance data (24h → 12 months), and competitor research.
 
@@ -78,7 +80,7 @@ OpenAI adapters are wired but **inert until `OPENAI_API_KEY` is set**.
 ## Google Search Console (OAuth)
 
 1. In [Google Cloud Console](https://console.cloud.google.com): create an **OAuth 2.0 Client (Web)**, enable the **Search Console API**.
-2. Add redirect URI `http://localhost:3000/api/gsc/callback` (and `https://edstellar-conflict-checker-knowledg.vercel.app/api/gsc/callback` for prod).
+2. Add redirect URI `http://localhost:3000/api/gsc/callback` (and `https://<your-project>.vercel.app/api/gsc/callback` for prod).
 3. Put the client ID/secret and your verified `GSC_SITE_URL` in `.env`.
 4. Visit `/search-console` → **Connect Google**.
 
@@ -87,7 +89,7 @@ OpenAI adapters are wired but **inert until `OPENAI_API_KEY` is set**.
 This repo is a single Next.js app at the root — Vercel will auto-detect it.
 
 1. **Import** the repo in Vercel.
-2. **Environment variables** — copy every key from [`.env.example`](.env.example) into Vercel → Project → Settings → Environment Variables. At minimum: `DATABASE_URL` + one chat provider key. Set `APP_BASE_URL` to your `https://edstellar-conflict-checker-knowledg.vercel.app` (or custom domain) and `GOOGLE_REDIRECT_URI` to that domain + `/api/gsc/callback`.
+2. **Environment variables** — copy every key from [`.env.example`](.env.example) into Vercel → Project → Settings → Environment Variables. At minimum: `DATABASE_URL` + one chat provider key. Set `APP_BASE_URL` to your `https://<your-project>.vercel.app` (or custom domain) and `GOOGLE_REDIRECT_URI` to that domain + `/api/gsc/callback`.
 3. **Build** — defaults (`next build`) are correct; no overrides needed.
 4. **First deploy** — pushes succeed but the DB is empty. After deploy:
    ```bash

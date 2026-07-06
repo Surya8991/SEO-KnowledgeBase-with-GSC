@@ -10,8 +10,8 @@ A plain-English walkthrough of every action you'll take in **GitHub** and **Verc
 
 | Where | What lives there | What you do there |
 |---|---|---|
-| **GitHub** (`Layruss98266/Edstellar-Conflict-Checker-KnowledgeBase`) | The source code + history. | Push changes. Code reviews. Roll back if needed. |
-| **Vercel** | The running app at `https://edstellar-conflict-checker-knowledg.vercel.app`. Reads your GitHub repo and builds it. | Set environment variables. Watch builds. Add a custom domain. Read function logs. |
+| **GitHub** (`Surya8991/SEO-KnowledgeBase-with-GSC`) | The source code + history. | Push changes. Code reviews. Roll back if needed. |
+| **Vercel** | The running app at `https://<your-project>.vercel.app`. Reads your GitHub repo and builds it. | Set environment variables. Watch builds. Add a custom domain. Read function logs. |
 | **Neon** (Postgres) | The corpus + check history database. | Nothing day-to-day. You set the connection string once. |
 | **Groq / Anthropic / Google / Serper** | External APIs the app calls. | Get keys once, paste into Vercel env vars. |
 
@@ -23,13 +23,13 @@ The flow is: **you push to GitHub `main` → Vercel notices → Vercel builds �
 
 ### 1.1 Where it is
 
-[`github.com/Layruss98266/Edstellar-Conflict-Checker-KnowledgeBase`](https://github.com/Layruss98266/Edstellar-Conflict-Checker-KnowledgeBase) on the `main` branch.
+[`github.com/Surya8991/SEO-KnowledgeBase-with-GSC`](https://github.com/Surya8991/SEO-KnowledgeBase-with-GSC) on the `main` branch.
 
 ### 1.2 Clone it once on your laptop
 
 ```bash
-git clone https://github.com/Layruss98266/Edstellar-Conflict-Checker-KnowledgeBase.git
-cd Edstellar-Conflict-Checker-KnowledgeBase
+git clone https://github.com/Surya8991/SEO-KnowledgeBase-with-GSC.git
+cd SEO-KnowledgeBase-with-GSC
 npm install
 cp .env.example .env       # fill in real values — see SETUP_GUIDE.md
 ```
@@ -53,9 +53,9 @@ Do these once.
 
 ### 2.1 Sign in and import the repo
 
-1. Go to <https://vercel.com> → **Log In** → choose **Continue with GitHub** (sign in as `Layruss98266`).
+1. Go to <https://vercel.com> → **Log In** → choose **Continue with GitHub** (sign in as `Surya8991`).
 2. From the dashboard, click **Add New… → Project**.
-3. Find `Edstellar-Conflict-Checker-KnowledgeBase` in the list → **Import**.
+3. Find `SEO-KnowledgeBase-with-GSC` in the list → **Import**.
 4. **Framework Preset**: Vercel will auto-detect **Next.js**. Leave everything else default.
 5. **Root Directory**: leave as `.` (we flattened the repo so the app is at the root).
 6. **Don't click Deploy yet** — env vars first.
@@ -72,7 +72,7 @@ Still on the import screen, expand **Environment Variables**. Paste each row fro
 | `GROQ_API_KEY` | A Groq API key starting `gsk_…` | <https://console.groq.com/keys> → Create API Key |
 | `AI_CHAT_PROVIDER` | `groq` | (literal value) |
 | `AI_EMBED_PROVIDER` | `local` | (literal value) |
-| `APP_BASE_URL` | `https://edstellar-conflict-checker-knowledg.vercel.app` | Vercel will show this URL after first deploy. Add it now as a placeholder; update it after deploy if the auto-assigned name differs. |
+| `APP_BASE_URL` | `https://<your-project>.vercel.app` | Vercel will show this URL after first deploy. Add it now as a placeholder; update it after deploy if the auto-assigned name differs. |
 | `CRON_SECRET` | Any long random string, e.g. `openssl rand -hex 32` | **Required for production.** Since the Session 6 audit, cron routes fail CLOSED — every request without a matching `Authorization: Bearer …` header returns 401. Vercel Cron sends the header automatically once this env is set; if it's missing/empty, every cron run 401s. |
 | `AUTH_SECRET` | Any long random string, e.g. `openssl rand -hex 32` | **Strongly recommended even when `AUTH_ENABLED=false`.** Session 6 audit (S2) uses this to sign the GSC OAuth state nonce that closes a callback-CSRF hole. Falls back to `GOOGLE_CLIENT_SECRET` in prod if missing — a dedicated value is safer. |
 | `BRAND_TERMS` | `edstellar,edstellar.com` | (literal value) |
@@ -83,7 +83,7 @@ Still on the import screen, expand **Environment Variables**. Paste each row fro
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Switching chat provider to Claude | Then also set `AI_CHAT_PROVIDER=claude` |
 | `OPENAI_API_KEY` | Switching to OpenAI for chat or embeddings | If embeddings: also do the 384→1536 column-widen migration in `README.md` and re-ingest |
-| `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` + `GOOGLE_REDIRECT_URI` + `GSC_SITE_URL` | The `/search-console` page | Follow `SETUP_GUIDE.md` STEP 2. The redirect URI for prod is `https://edstellar-conflict-checker-knowledg.vercel.app/api/gsc/callback`. |
+| `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` + `GOOGLE_REDIRECT_URI` + `GSC_SITE_URL` | The `/search-console` page | Follow `SETUP_GUIDE.md` STEP 2. The redirect URI for prod is `https://<your-project>.vercel.app/api/gsc/callback`. |
 | `SERPER_API_KEY` | The `/competitors` page | <https://serper.dev> → Sign up → Dashboard shows the key |
 | `WEBHOOK_API_KEY` | Gating LLM-burning endpoints from external callers | Gates three routes: `POST /api/check`, `POST /api/summarize`, `POST /api/rewrite-suggestion`. Callers must send `X-API-Key: <value>`. When unset, per-IP rate-limiting is the only gate. |
 | `CONFLICT_MIN_SIMILARITY` | Tuning the conflict floor | Override the default 0.50 cosine floor. Session 6 audit raised this from 0.30 — re-loosen if the team finds it too aggressive. Range 0–1. |
@@ -93,7 +93,7 @@ Still on the import screen, expand **Environment Variables**. Paste each row fro
 
 1. Click **Deploy**.
 2. Wait ~90 seconds. You'll see the build log stream.
-3. If it goes green, you get a **Visit** button → opens `https://edstellar-conflict-checker-knowledg.vercel.app`.
+3. If it goes green, you get a **Visit** button → opens `https://<your-project>.vercel.app`.
 4. If it fails, see [§ 6. Troubleshooting](#6-troubleshooting).
 
 ### 2.4 First-deploy follow-up — seed the database
@@ -218,7 +218,7 @@ Check Vercel → project → **Logs** → look at recent invocations of `/api/ch
 
 ### `/search-console` says "Connect Google" forever
 
-The redirect URI in Google Cloud Console doesn't include your Vercel URL. In Google Cloud → **Credentials → your OAuth client → Authorized redirect URIs**, add `https://edstellar-conflict-checker-knowledg.vercel.app/api/gsc/callback`, save, retry.
+The redirect URI in Google Cloud Console doesn't include your Vercel URL. In Google Cloud → **Credentials → your OAuth client → Authorized redirect URIs**, add `https://<your-project>.vercel.app/api/gsc/callback`, save, retry.
 
 ### Cron job didn't run
 
@@ -265,7 +265,7 @@ Vercel → project → **Cron Jobs** tab shows scheduled runs + invocation logs.
 
 **Cheat sheet of the four URLs to bookmark:**
 
-- Repo: <https://github.com/Layruss98266/Edstellar-Conflict-Checker-KnowledgeBase>
-- Vercel project: `https://vercel.com/<your-team>/edstellar-conflict-checker-knowledg`
+- Repo: <https://github.com/Surya8991/SEO-KnowledgeBase-with-GSC>
+- Vercel project: `https://vercel.com/<your-team>/<your-project>`
 - Neon project: <https://console.neon.tech>
-- Production app: `https://edstellar-conflict-checker-knowledg.vercel.app`
+- Production app: `https://<your-project>.vercel.app`

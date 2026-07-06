@@ -1,4 +1,11 @@
-# Edstellar Conflict Checker — Project Log
+# SEO Knowledge Base — Conflict Checker (with GSC) — Project Log
+
+> **Fork notice.** This is a **baseline snapshot** repo (`Surya8991/SEO-KnowledgeBase-with-GSC`),
+> reset to the state *before* GSC removal and squashed to one baseline commit. The log below is the
+> **upstream historical record** — its entries, commit hashes, the `**Prod:**` URL, and any
+> `*.vercel.app` / `Layruss98266` / `Corporatetrends` mentions refer to the **original** project,
+> not this fork. This fork is **not deployed**. Do not act on those upstream URLs, and push only to
+> `origin` (`Surya8991/SEO-KnowledgeBase-with-GSC`).
 
 > Single source of truth for this project. Lists what's built, what's planned,
 > and how the system fits together. Update this file with every meaningful
@@ -6,7 +13,7 @@
 
 **Last updated:** 2026-06-25 (Session 10 — 9-persona audit + Project log surfaced top-right)
 **Owner:** marketing@edstellar.com
-**Repo:** https://github.com/Layruss98266/Edstellar-Conflict-Checker-KnowledgeBase
+**Repo:** https://github.com/Surya8991/SEO-KnowledgeBase-with-GSC
 **Prod:** https://edstellar-conflict-checker-knowledg.vercel.app/
 
 ---
@@ -216,7 +223,7 @@ No HTML download required at runtime — the JSON files are committed to
 ### Session 3 — 2026-06-24 (shipped log)
 
 Every batch in this session was committed to `main` on
-`github.com/Corporatetrends/Edstellar-Conflict-Checker-KnowledgeBase`. Each
+`github.com/Surya8991/SEO-KnowledgeBase-with-GSC`. Each
 bullet ends with the short SHA so you can `git show <sha>`.
 
 - **Conflict Checker returns ALL matches above the threshold, paginated.**

@@ -1,3 +1,9 @@
+# Fork notice — read first
+
+This repo is `Surya8991/SEO-KnowledgeBase-with-GSC`, a **baseline snapshot** duplicated from an upstream project, reset to the state *before* GSC removal and squashed to a single baseline commit. It is **not deployed**. `origin` points here — **never** push to, or reuse the deployment/DB of, the upstream original. Any `*.vercel.app` URL in the docs is an upstream/placeholder reference, not this fork's.
+
+---
+
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
 
