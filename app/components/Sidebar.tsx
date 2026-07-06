@@ -16,6 +16,7 @@ import {
   GitCompareArrows,
   BarChart3,
   Compass,
+  Boxes,
   Menu,
   X,
 } from "lucide-react";
@@ -39,6 +40,7 @@ const NAV: { href: string; label: string; icon: any }[] = [
 ];
 
 const ADDITIONAL_NAV: { href: string; label: string; icon: any }[] = [
+  { href: "/clusters",           label: "Content Clusters",  icon: Boxes },
   { href: "/audit",              label: "Content Audit",     icon: ClipboardCheck },
   { href: "/internal-links",     label: "Internal Links",    icon: Link2 },
   { href: "/strategy",           label: "Funnel Strategy",   icon: Compass },
