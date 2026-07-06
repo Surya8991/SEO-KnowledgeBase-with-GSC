@@ -1,12 +1,17 @@
 import { neon } from "@neondatabase/serverless";
 import { getChat, getEmbedder } from "@/lib/ai";
-import { fetchAndExtract } from "@/lib/extract";
+import { fetchAndExtract, estimateTokens } from "@/lib/extract";
 import { vectorSearchPages, toVectorLiteral } from "@/lib/search";
 import {
   blendScore,
   similarityToBaseScore,
   conflictTypeFromScore,
 } from "@/lib/score";
+import { signalScores, type SignalScores } from "@/lib/signals";
+import { classifyIntent, type Intent } from "@/lib/intent";
+import { decidePair, type PairResolution, type AuthorityInput } from "@/lib/resolution";
+import { tagUrl } from "@/lib/taxonomy";
+import { fetchInboundCounts } from "@/lib/inbound-links";
 import type { SummaryResult } from "@/lib/ai/types";
 import { log } from "@/lib/logger";
 
@@ -30,6 +35,14 @@ export interface ConflictMatchResult {
    *  severity hint. Null when GSC isn't connected or page has no traffic. */
   gscClicks28d?: number | null;
   gscImpressions28d?: number | null;
+  /** Phase 1 automation (plans/01-conflict-automation.md): the four
+   *  independent similarity signals (title/h1/slug/body), kept separate so a
+   *  reviewer sees *why* two pages conflict. */
+  signals?: SignalScores;
+  /** Rule-based search intent of the matched page. */
+  intent?: Intent;
+  /** Deterministic resolution + winner for the (input, match) pair. */
+  resolution?: PairResolution;
 }
 
 export interface ConflictCheckResult {
@@ -43,6 +56,8 @@ export interface ConflictCheckResult {
   topScore: number;
   matches: ConflictMatchResult[];
   checkId?: number;
+  /** Rule-based search intent of the input itself (Phase 1 automation). */
+  inputIntent?: Intent;
 }
 
 function isUrl(value: string): boolean {
@@ -117,8 +132,17 @@ export async function runConflictCheck(
   const minSimilarity =
     opts.minSimilarity ?? (Number.isFinite(envFloor) && envFloor > 0 ? envFloor : 0.50);
 
-  // 1. Build a summary + dense search synopsis.
+  // 1. Build a summary + dense search synopsis. Capture the input's own
+  //    title/h1/url/depth so Phase-1 signal + winner scoring has something to
+  //    compare each match against.
   let summaryResult: SummaryResult;
+  let inputMeta: {
+    title: string | null;
+    h1: string | null;
+    url: string | null;
+    text: string;
+    tokenCount: number;
+  };
   if (inputType === "url") {
     const page = await fetchAndExtract(input);
     summaryResult = await chat.summarize({
@@ -126,9 +150,33 @@ export async function runConflictCheck(
       content: [page.title, page.h1, page.contentText].filter(Boolean).join("\n"),
       isTopic: false,
     });
+    inputMeta = {
+      title: page.title ?? null,
+      h1: page.h1 ?? null,
+      url: input,
+      text: [page.title, page.h1].filter(Boolean).join(" "),
+      tokenCount: estimateTokens(page.contentText ?? ""),
+    };
   } else {
     summaryResult = await chat.summarize({ content: input, isTopic: true });
+    inputMeta = {
+      title: null,
+      h1: null,
+      url: null,
+      text: input,
+      tokenCount: estimateTokens(input),
+    };
   }
+  const inputIntent = classifyIntent({
+    title: inputMeta.title,
+    h1: inputMeta.h1,
+    slug: inputMeta.url,
+    text: `${inputMeta.text} ${summaryResult.keywords.join(" ")}`,
+  }).label;
+  // Content type of the input page (URL inputs only) — drives the
+  // course↔course template-noise gate in decidePair. Topics have no type.
+  const inputContentType: string | null =
+    inputType === "url" ? tagUrl(input).contentType : null;
 
   // 2. Embed the candidate and find nearest corpus pages.
   const embedText = `${summaryResult.searchSynopsis}\n${summaryResult.keywords.join(", ")}`;
@@ -155,8 +203,26 @@ export async function runConflictCheck(
     : [];
   const verdictByUrl = new Map(verdicts.map((v) => [v.url, v]));
 
+  // 3b. Internal inbound-link counts (winner-authority signal, Phase 1). One
+  //     query for the input URL + all match URLs.
+  const inboundUrls = [
+    ...(inputMeta.url ? [inputMeta.url] : []),
+    ...meaningful.map((m) => m.url),
+  ];
+  const inbound = inboundUrls.length
+    ? await fetchInboundCounts(inboundUrls, inputMeta.url ?? undefined)
+    : {};
+  const inputAuthority: AuthorityInput = {
+    url: inputMeta.url ?? "",
+    inbound: inputMeta.url ? inbound[inputMeta.url] ?? 0 : 0,
+    tokenCount: inputMeta.tokenCount,
+    clicks: null,
+  };
+
   // 4. Blend vector + LLM scores. Un-classified matches get
   //    a similarity-derived score and conflictType="needs-review".
+  //    Also attach the Phase-1 automation fields: per-signal breakdown,
+  //    intent, and the deterministic (input, match) resolution + winner.
   const matches: ConflictMatchResult[] = meaningful
     .map((m) => {
       const base = similarityToBaseScore(m.similarity);
@@ -165,6 +231,27 @@ export async function runConflictCheck(
       const conflictType = v
         ? (v.conflictType ?? conflictTypeFromScore(conflictScore))
         : "needs-review";
+      const signals = signalScores(
+        { title: inputMeta.title, h1: inputMeta.h1, url: inputMeta.url, text: inputMeta.text },
+        { title: m.title, h1: m.h1, url: m.url },
+        m.similarity,
+      );
+      const matchIntent = classifyIntent({
+        title: m.title,
+        h1: m.h1,
+        slug: m.url,
+        contentType: m.contentType,
+      }).label;
+      const resolution = decidePair(
+        inputAuthority,
+        { url: m.url, inbound: inbound[m.url] ?? 0, tokenCount: m.tokenCount, clicks: m.gscClicks28d },
+        signals,
+        inputIntent,
+        matchIntent,
+        undefined, // use default thresholds
+        inputType === "url", // topic inputs have no real title/h1/url → don't trust the lexical merge gate
+        { input: inputContentType, match: m.contentType }, // course↔course template-noise gate
+      );
       return {
         url: m.url,
         title: m.title,
@@ -178,6 +265,9 @@ export async function runConflictCheck(
         ownerUrl: m.ownerUrl,
         gscClicks28d: m.gscClicks28d,
         gscImpressions28d: m.gscImpressions28d,
+        signals,
+        intent: matchIntent,
+        resolution,
       };
     })
     // Sort by impact-weighted score: a 70%-conflict with a 12k-clicks/mo page
@@ -194,6 +284,7 @@ export async function runConflictCheck(
     primaryQuery: summaryResult.primaryQuery,
     topScore,
     matches,
+    inputIntent,
   };
 
   // 5. Persist (best-effort).
