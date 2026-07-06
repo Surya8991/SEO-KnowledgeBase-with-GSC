@@ -95,7 +95,7 @@ The first 90 seconds after a push to `main`:
 
 - [ ] Vercel Deployments tab → the new build is queued/building.
 - [ ] Build goes green. If red, click in → read the log → fix-forward (don't revert blindly).
-- [ ] Production URL still serves: `curl -sI https://edstellar-conflict-checker-knowledg.vercel.app/ | head -1` should show `HTTP/1.1 200`.
+- [ ] Production URL still serves: `curl -sI https://<your-project>.vercel.app/ | head -1` should show `HTTP/1.1 200`.
 - [ ] If you changed a public route, test it with curl/browser.
 - [ ] If you changed an env var dependency, you may need to **Redeploy** (Vercel doesn't pick up env-var changes automatically).
 - [ ] If your push includes a new `drizzle/*.sql`, run `npm run db:setup` against the prod `DATABASE_URL` once — idempotent, but un-applied migrations will break new routes that reference the new columns.
@@ -105,7 +105,7 @@ The first 90 seconds after a push to `main`:
 Quick paste-this-in-terminal:
 
 ```bash
-BASE=https://edstellar-conflict-checker-knowledg.vercel.app
+BASE=https://<your-project>.vercel.app
 
 # 1. Cron routes must 401 without the bearer secret
 for path in /api/cron/reingest /api/cron/audit-links /api/cron/gsc-snapshot; do

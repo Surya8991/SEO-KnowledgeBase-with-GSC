@@ -86,7 +86,7 @@ Only needed if you want the Search Console dashboard. Skip if you only care abou
    - **Authorized redirect URIs** → Add **both**:
      ```
      http://localhost:3000/api/gsc/callback
-     https://edstellar-conflict-checker-knowledg.vercel.app/api/gsc/callback
+     https://<your-project>.vercel.app/api/gsc/callback
      ```
    - Click **Create**.
 8. A popup shows **Client ID** and **Client Secret**. Copy both.
@@ -153,8 +153,8 @@ Required before exposing the app publicly:
 1. `CRON_SECRET` — set a long random string. **Required.** Since the Session 6 audit (S1), every cron route fails **closed** if the bearer header doesn't match — missing secret = 401 = silent cron breakage. Generate with `openssl rand -hex 32`.
 2. `AUTH_SECRET` — long random string. Even with `AUTH_ENABLED=false`, this is now used to sign the GSC OAuth state nonce (Session 6 audit S2). Falls back to `GOOGLE_CLIENT_SECRET` in prod if missing, but a dedicated value is safer. `openssl rand -hex 32`.
 3. `WEBHOOK_API_KEY` (optional) — gate `POST /api/check`, `POST /api/summarize`, and `POST /api/rewrite-suggestion` for external callers. When set, callers must send `X-API-Key: <value>`. Session 6 audit (S3) closed the previously-open `/api/summarize` and `/api/rewrite-suggestion` routes; if you leave this blank they fall through to per-IP rate-limiting.
-4. `APP_BASE_URL` — set to your `https://edstellar-conflict-checker-knowledg.vercel.app` (or custom domain). Used to build absolute URLs in cron jobs and OAuth flows.
-5. `GOOGLE_REDIRECT_URI` — switch to the prod URL `https://edstellar-conflict-checker-knowledg.vercel.app/api/gsc/callback` (and add it to the Google OAuth client's allowed redirect URIs).
+4. `APP_BASE_URL` — set to your `https://<your-project>.vercel.app` (or custom domain). Used to build absolute URLs in cron jobs and OAuth flows.
+5. `GOOGLE_REDIRECT_URI` — switch to the prod URL `https://<your-project>.vercel.app/api/gsc/callback` (and add it to the Google OAuth client's allowed redirect URIs).
 6. `BRAND_TERMS` — comma-separated brand/keyword terms the checker treats as house terms (default `edstellar,edstellar.com`).
 7. `CONFLICT_MIN_SIMILARITY` (optional) — override the 0.50 cosine floor for surfaced matches. Session 6 audit (H11) raised the default from 0.30; lower this if your team finds the new floor too aggressive. Range 0–1.
 8. **Apply the schema migration**: from your laptop with the prod `DATABASE_URL`, run `npm run db:setup` once. Session 6 added `drizzle/0005_check_match_enrichment.sql` (additive, idempotent — safe to re-run).
@@ -168,7 +168,7 @@ This is opt-in via `AUTH_ENABLED=true`. Leave it off until the OAuth consent scr
 1. **Google Cloud Console** → APIs & Services → **OAuth consent screen** → click **Publish app**. Move the consent screen from **Testing** to **In production**. Anyone in `@edstellar.com` will then be able to sign in without being added as a test user.
 2. Same console → **Credentials** → your existing OAuth client → **Authorized redirect URIs** → add:
    ```
-   https://edstellar-conflict-checker-knowledg.vercel.app/api/auth/callback/google
+   https://<your-project>.vercel.app/api/auth/callback/google
    ```
    (Keep the GSC one alongside it; same client serves both.)
 3. Generate a session secret:
