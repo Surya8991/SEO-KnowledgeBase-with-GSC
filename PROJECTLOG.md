@@ -2,7 +2,7 @@
 
 > **Fork notice.** This is a **baseline snapshot** repo (`Surya8991/SEO-KnowledgeBase-with-GSC`),
 > reset to the state *before* GSC removal and squashed to one baseline commit. The log below is the
-> **upstream historical record** — its entries, commit hashes, the `**Prod:**` URL, and any
+> **upstream historical record** — its entries, commit hashes, and any
 > `*.vercel.app` / `Layruss98266` / `Corporatetrends` mentions refer to the **original** project,
 > not this fork. This fork is **not deployed**. Do not act on those upstream URLs, and push only to
 > `origin` (`Surya8991/SEO-KnowledgeBase-with-GSC`).
@@ -12,9 +12,7 @@
 > change.
 
 **Last updated:** 2026-06-25 (Session 10 — 9-persona audit + Project log surfaced top-right)
-**Owner:** marketing@edstellar.com
 **Repo:** https://github.com/Surya8991/SEO-KnowledgeBase-with-GSC
-**Prod:** https://edstellar-conflict-checker-knowledg.vercel.app/
 
 ---
 
