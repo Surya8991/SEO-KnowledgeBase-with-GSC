@@ -11,7 +11,7 @@
 > and how the system fits together. Update this file with every meaningful
 > change.
 
-**Last updated:** 2026-07-06 (Session 11 — full project audit: security / code-quality / deps / DB-secrets)
+**Last updated:** 2026-07-06 (Session 11 — full project audit + security fixes shipped: C1/H1–H6/H8/H9)
 **Repo:** https://github.com/Surya8991/SEO-KnowledgeBase-with-GSC
 
 ---
@@ -1642,3 +1642,38 @@ SQL injection — none (all parameterized, incl. `unnest(...::type[])` batch ins
 3. **H5** — env guard refusing destructive scripts against the prod host.
 4. **H6 + H7** — restore ESLint; drop `@xenova/transformers` for HF v3 or OpenAI embeddings.
 5. **H8** — vitest + cover ssrf-guard, conflict, score, chat-base sanitize.
+
+---
+
+## 16. Session 11 — Audit fixes shipped (2026-07-06)
+
+Branch `fix/audit-security-cluster-1`. Commit-per-cluster, verified with
+`npm run typecheck` + `npm run lint` + `npm run test` (all green) before each
+commit. **Not pushed** — awaiting review.
+
+### 16A. Shipped ✅
+
+| Audit | Fix | Files |
+|-------|-----|-------|
+| **C1** | New `lib/safe-fetch.ts` (`safeFetch`) — SSRF guard + manual-redirect re-validation on every hop. Wired into the 3 raw fetches in `lib/competitors-extra.ts` (sitemap candidates, sitemap-index child, freshness sampler) and the `sitemap-drift` crawl. Cloud-metadata/RFC1918/loopback now unreachable from these paths. | `lib/safe-fetch.ts`, `lib/competitors-extra.ts`, `app/api/sitemap-drift/route.ts` |
+| **H1** | `gateLlmEndpoint` added to `/api/competitors/freshness`, `/serp-overlap`, and `/api/sitemap-drift` (were fully ungated). `sitemap-drift` host param validated (absolute http/https only). | those 3 routes |
+| **H2** | New `lib/secure-compare.ts` (`secureEquals`, constant-time). Replaces `===`/`!==` on WEBHOOK/WORKER keys in `api-gate`, `check`, `check/bulk`, `drafts`, `drafts/[id]`. | `lib/secure-compare.ts` + 5 routes |
+| **H3** | `clientIp` no longer trusts the spoofable leftmost `X-Forwarded-For`; prefers `x-real-ip`, else the rightmost (trusted-proxy) hop. Closes the rotate-a-header rate-limit bypass. | `lib/rate-limit.ts` |
+| **H4** | New `gateWriteEndpoint` (key OR session, rate-limit only when neither is configured). Applied to `/api/check/outcome` + `/api/pages/owner` — a dashboard-only prod now requires a session for these DB writes. | `lib/api-gate.ts` + 2 routes |
+| **H5** | New `lib/db/prod-guard.ts` (`assertProdWritesAllowed`). Destructive scripts (`cleanup-junk-pages --delete`, `reclassify-home`) refuse to run against `PROD_DATABASE_HOST` unless `ALLOW_PROD_WRITES=1`. Opt-in (warns when unconfigured). | `lib/db/prod-guard.ts`, 2 scripts |
+| **H6** | Restored the dead lint gate — `next lint` was removed in Next 16. Added `eslint` + `eslint-config-next` (native flat config), `eslint.config.mjs`, `lint` → `eslint .`. Two never-enforced rules (`no-unescaped-entities`, `set-state-in-effect`) kept as warnings for burn-down. Now 0 errors. | `eslint.config.mjs`, `package.json` |
+| **H8** (started) | Added **vitest** (`test`/`test:watch`) + **31 tests**: `secureEquals`, `clientIp` (H3 no-spoof), SSRF-guard scheme + forbidden-literal-IP paths, `assertProdWritesAllowed`. | `vitest.config.ts`, `*.test.ts` |
+| **H9** | Pinned `next-auth` to exact `5.0.0-beta.31` (was `^`) so a new beta can't auto-land on the auth boundary. | `package.json` |
+| **M-3a** | Documented the 8 previously-undocumented env vars in `.env.example` (`WORKER_API_KEY`, `LLM_KILL_SWITCH`, `GROQ_MODEL_DRAFT`, `DRAFT_PROVIDER`, `CLAUDE_MODEL`, `AGY_MODEL`, `DRAFT_POLL_MS`, `LOG_LEVEL`) + warned against shipping the literal `CRON_SECRET` placeholder. | `.env.example` |
+
+### 16B. Deferred / outstanding
+
+- **H7 — `@xenova/transformers` v2 vulns (1 critical + 3 high).** Deferred intentionally: the fix is a migration to `@huggingface/transformers` v3 (rewrites `lib/ai/embed-local.ts` + `next.config` `serverExternalPackages`) or a switch to OpenAI embeddings — both need a live model-download / embedding-parity verification pass, not a same-session dep bump. Mitigating: runtime uses `onnxruntime-node`, not the vulnerable `-web`/`protobufjs` chain. **Own task.**
+- **H8 remainder** — still need tests for `conflict.ts` (`impactWeighted`, scoring blend) and `chat-base.ts` (`sanitizeForPrompt`, `parseJson`). Harness is now in place.
+- **Mediums not yet done** — draft pipeline abstraction leak (raw `groq-sdk` in `runtime.ts`); bind `EMBED_DIM` to provider dimension + startup assert (5-site 384 coupling); log the silent AI empty returns; GSC token encryption at rest; `reingest` resume cursor; verbose error-message leakage; DNS-rebind IP-binding; `vercel.json` 3-vs-2 cron cap.
+- **Lows** — schema drift (`pages.cluster_id` etc.), finish `console.*`→`logger` migration, type the `as any[]` SQL sites, `@types/node`→22 / jsdom bump, burn down the 28 lint warnings.
+
+### 16C. Lessons
+
+- **"Rate-limit as auth" only holds if the limiter can't be bypassed.** H3 (spoofable XFF) silently voided the H4/outcome/owner protection and every `gateLlmEndpoint` fallback. Fixing the limiter was higher-leverage than any single endpoint patch — one root cause under many findings.
+- **A dead quality gate hides for a long time.** `next lint` had been erroring out since the Next 16 bump with nobody noticing; the gate reported "no lint errors" by never running. Restoring it surfaced 26 real (if minor) issues. Verify gates actually execute, not just exit 0.
