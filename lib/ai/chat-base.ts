@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { log } from "@/lib/logger";
+import { assertLlmEnabled } from "./kill-switch";
 import type {
   ChatProvider,
   ConflictMatchInput,
@@ -15,7 +17,7 @@ import type {
  * tags collapses the injection surface to the content inside the block,
  * which the prompt already marks as untrusted.
  */
-function sanitizeForPrompt(s: string): string {
+export function sanitizeForPrompt(s: string): string {
   return s.replace(/<\/?data[^>]*>/gi, "").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
 }
 
@@ -101,9 +103,7 @@ export abstract class BaseChatProvider implements ChatProvider {
    * call complete() go through this wrapper, so a single env var stops spend.
    */
   private async safeComplete(system: string, user: string): Promise<string> {
-    if (process.env.LLM_KILL_SWITCH === "1") {
-      throw new Error("LLM_KILL_SWITCH is active — all AI calls are disabled.");
-    }
+    assertLlmEnabled("all AI calls");
     return this.complete(system, user);
   }
 
@@ -147,6 +147,15 @@ Return JSON: {
 
     const raw = await this.safeComplete(system, user);
     const parsed = validateLlm(raw, SummarySchema);
+    if (parsed == null) {
+      // Session 11: don't let a degraded/malformed LLM reply silently become
+      // an empty summary that looks identical to "genuinely nothing to say".
+      log.warn("ai.summarize: LLM output failed schema validation", {
+        provider: this.name,
+        isTopic: input.isTopic,
+        rawSnippet: raw.slice(0, 200),
+      });
+    }
     return {
       summary: parsed?.summary ?? "",
       keywords: parsed?.keywords ?? [],
@@ -198,7 +207,17 @@ Return JSON object: {"verdicts": [{"url": string, "conflictScore": number, "conf
     let candidate: unknown = parseJson<unknown>(raw, null);
     if (Array.isArray(candidate)) candidate = { verdicts: candidate };
     const parsed = candidate ? VerdictsSchema.safeParse(candidate) : null;
-    return parsed?.success ? (parsed.data.verdicts as ConflictVerdict[]) : [];
+    if (!parsed?.success) {
+      // Session 11: an empty verdict list here makes every match silently
+      // degrade to "needs-review" with no rationale — surface it.
+      log.warn("ai.classifyConflicts: LLM output failed schema validation", {
+        provider: this.name,
+        matchCount: input.matches.length,
+        rawSnippet: raw.slice(0, 200),
+      });
+      return [];
+    }
+    return parsed.data.verdicts as ConflictVerdict[];
   }
 
   /**
@@ -266,6 +285,12 @@ Choose "merge" when the existing page is already the right destination for this 
 
     const raw = await this.safeComplete(system, user);
     const parsed = validateLlm(raw, RewriteProposalSchema);
+    if (parsed == null) {
+      log.warn("ai.proposeRewrite: LLM output failed schema validation", {
+        provider: this.name,
+        rawSnippet: raw.slice(0, 200),
+      });
+    }
     return parsed ?? { diagnosis: "", angles: [], decision: "rewrite" };
   }
 
@@ -284,6 +309,13 @@ Content: <data>${sanitizeForPrompt(input.content).slice(0, 6000)}</data>
 Return JSON: {"summary": string (2-3 sentences on what this competitor page covers), "angle": string (1 sentence on its unique angle / how to differentiate from it)}`;
     const raw = await this.safeComplete(system, user);
     const parsed = validateLlm(raw, CompetitorSchema);
+    if (parsed == null) {
+      log.warn("ai.summarizeCompetitor: LLM output failed schema validation", {
+        provider: this.name,
+        url: input.url.slice(0, 200),
+        rawSnippet: raw.slice(0, 200),
+      });
+    }
     return { summary: parsed?.summary ?? "", angle: parsed?.angle ?? "" };
   }
 }

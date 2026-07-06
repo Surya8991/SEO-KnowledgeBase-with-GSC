@@ -278,7 +278,7 @@ export default async function StrategyPage() {
 
         <p className="text-xs text-slate-400">
           Stage mapping: blog/topic = TOFU · category/subcategory = MOFU · course/mentor = BOFU.
-          Pages with no content_type or one outside this list aren't counted.
+          Pages with no content_type or one outside this list aren&apos;t counted.
         </p>
       </div>
     </div>

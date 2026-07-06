@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import type { NextRequest } from "next/server";
+import { log } from "@/lib/logger";
 
 /**
  * Postgres-backed sliding-window rate limiter — fits the existing Neon-only
@@ -31,12 +32,34 @@ interface ConsumeOpts {
   windowSec: number;
 }
 
-/** Read the client IP off a NextRequest. Vercel sets x-forwarded-for. */
+/**
+ * Read the trustworthy client IP off a NextRequest.
+ *
+ * Audit H3 (Session 11): the previous implementation took the LEFTMOST
+ * `x-forwarded-for` value, which is fully attacker-controlled — a client can
+ * send `X-Forwarded-For: <random>` and the trusted proxy only *appends* to it.
+ * Rotating that header gave every request a fresh rate-limit bucket, defeating
+ * the limiter (the only protection on the LLM/write endpoints when
+ * WEBHOOK_API_KEY is unset).
+ *
+ * On Vercel the platform sets `x-real-ip` to the true client IP and appends
+ * the real IP as the RIGHTMOST hop of `x-forwarded-for`. So we trust, in order:
+ *   1. `x-real-ip` (Vercel/most reverse proxies set this to the real client).
+ *   2. the rightmost `x-forwarded-for` entry (the hop added by the proxy
+ *      nearest us — the one value an external client cannot forge).
+ * We deliberately ignore the leftmost XFF value.
+ *
+ * NOTE: if this ever runs behind >1 trusted proxy, widen the trusted-hop count
+ * accordingly — but never trust the leftmost entry.
+ */
 export function clientIp(req: NextRequest): string {
-  const fwd = req.headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0]!.trim();
-  const real = req.headers.get("x-real-ip");
+  const real = req.headers.get("x-real-ip")?.trim();
   if (real) return real;
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) {
+    const hops = fwd.split(",").map((h) => h.trim()).filter(Boolean);
+    if (hops.length) return hops[hops.length - 1]!;
+  }
   return "unknown";
 }
 
@@ -120,7 +143,7 @@ export async function consume(
       return { ok: true, remaining: opts.max, resetIn: opts.windowSec };
     }
     // Prod DB hiccup → in-memory fallback (per-instance, but bounded).
-    console.warn("[rate-limit] DB failed, using in-memory bucket:", (err as Error).message);
+    log.warn("rate-limit: DB failed, using in-memory bucket", { error: (err as Error).message });
     return inMemoryConsume(ip, route, opts);
   }
 }

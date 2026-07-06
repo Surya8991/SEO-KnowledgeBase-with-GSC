@@ -120,8 +120,8 @@ function SerpOverlapTab() {
         <Card>
           <div className="mb-3 text-sm">
             {data.edstellarRank
-              ? <span className="rounded bg-emerald-100 px-2 py-1 text-emerald-700">Edstellar ranks #{data.edstellarRank} for "{data.topic}"</span>
-              : <span className="rounded bg-amber-100 px-2 py-1 text-amber-700">Edstellar is NOT in the top 10 for "{data.topic}"</span>}
+              ? <span className="rounded bg-emerald-100 px-2 py-1 text-emerald-700">Edstellar ranks #{data.edstellarRank} for &quot;{data.topic}&quot;</span>
+              : <span className="rounded bg-amber-100 px-2 py-1 text-amber-700">Edstellar is NOT in the top 10 for &quot;{data.topic}&quot;</span>}
           </div>
           <table className="w-full text-sm">
             <thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-400">

@@ -43,6 +43,7 @@ export default function DashboardError({
           >
             Retry
           </button>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- plain <a> is intentional in the error boundary */}
           <a
             href="/"
             className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"

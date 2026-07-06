@@ -49,6 +49,7 @@ export default function Sidebar({ user, signOutSlot }: { user?: SidebarUser | nu
   const [open, setOpen] = useState(false);
 
   // Close the drawer on route change so the user lands on the new page.
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset/sync on dependency change
   useEffect(() => { setOpen(false) }, [pathname]);
 
   return (

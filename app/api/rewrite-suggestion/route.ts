@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getChat } from "@/lib/ai";
 import { gateLlmEndpoint } from "@/lib/api-gate";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -61,9 +62,9 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json(proposal);
   } catch (e) {
-    return NextResponse.json(
-      { error: (e as Error).message || "Rewrite suggestion failed." },
-      { status: 500 },
-    );
+    return errorResponse("/api/rewrite-suggestion", e, {
+      status: 500,
+      publicMessage: "Rewrite suggestion failed.",
+    });
   }
 }

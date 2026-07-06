@@ -23,10 +23,10 @@ function emit(level: Level, msg: string, ctx?: Record<string, unknown>) {
     ...(ctx ? { ctx } : {}),
   });
   if (level === "warn" || level === "error") {
-    // eslint-disable-next-line no-console
+     
     console.error(line);
   } else {
-    // eslint-disable-next-line no-console
+     
     console.log(line);
   }
 }

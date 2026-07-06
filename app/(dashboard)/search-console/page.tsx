@@ -159,6 +159,7 @@ function SearchConsoleInner() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset/sync on dependency change
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, customDates.startDate, customDates.endDate]);
@@ -705,7 +706,7 @@ function UntappedTab({ data }: { data: Insights }) {
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-slate-900">Untapped queries</h3>
-          <p className="text-xs text-slate-500">High impressions, CTR below what's expected for that position — usually a meta-title / snippet issue.</p>
+          <p className="text-xs text-slate-500">High impressions, CTR below what&apos;s expected for that position — usually a meta-title / snippet issue.</p>
         </div>
         <ExportBtn
           onClick={() =>

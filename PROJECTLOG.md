@@ -11,7 +11,7 @@
 > and how the system fits together. Update this file with every meaningful
 > change.
 
-**Last updated:** 2026-06-25 (Session 10 — 9-persona audit + Project log surfaced top-right)
+**Last updated:** 2026-07-06 (Session 11 — full project audit + security fixes shipped: C1/H1–H6/H8/H9)
 **Repo:** https://github.com/Surya8991/SEO-KnowledgeBase-with-GSC
 
 ---
@@ -1571,3 +1571,126 @@ Ordered by **leverage × scope of personas helped**. Top items help 3+ personas 
 ### 14E. UI ship in this session
 
 User asked for the project log to be surfaced "top right" of the dashboard. Added `app/components/ProjectLogLink.tsx` — a small floating link top-right (z-30, hidden below `sm:` breakpoint so it doesn't fight the mobile burger) that opens this PROJECTLOG.md on GitHub in a new tab. Sidebar-style — out of the way, but discoverable. Mounted in `app/(dashboard)/layout.tsx`.
+
+---
+
+## 15. Session 11 — Full Project Audit (2026-07-06)
+
+Whole-repo audit run as **four parallel specialist agents** — security, code-quality/architecture, dependencies/build/deploy, DB-migrations/secrets-hygiene — then synthesised here. Read-only pass, no code touched during the audit. Every item lists file:line, root cause, impact, fix.
+
+**Method:** repomix snapshot (`.agentmaster/codebase.xml`, Jun-25; commits since are docs-only) + targeted live-file reads for accuracy. Real `npm run typecheck` / `lint` / `npm audit` output captured (§15E).
+
+**Headline:** codebase is more disciplined than typical for its size — clean AI provider abstraction, near-zero `TODO`/`@ts-ignore` debris, fully idempotent migrations, only `.env.example` tracked in git. But **the security posture collapses in the shipped default config**, and there are **zero tests**. Two facts cascade into most Critical/High items:
+
+1. `AUTH_ENABLED=false` + `WEBHOOK_API_KEY` blank are the `.env.example` defaults → `proxy.ts` session gate is a no-op → sensitive routes fall back to "rate-limit-as-auth".
+2. `lib/rate-limit.ts:35` trusts the client-supplied **leftmost** `X-Forwarded-For` → the rate limit itself is bypassable by rotating a header. Net: several write / LLM / SSRF endpoints are effectively **open** out of the box.
+
+### 15A. 🚨 Critical
+
+| # | Phase | File(s) | Problem | Fix |
+|---|-------|---------|---------|-----|
+| C1 | sec | `lib/competitors-extra.ts:184,194,279`, `app/api/sitemap-drift/route.ts:35` | **SSRF, cloud-metadata reachable, unauthenticated.** These fetch user-supplied hosts and **skip `assertSafeOutboundUrl`** (which `lib/extract.ts:163` applies correctly). `POST /api/competitors/freshness {"domain":"169.254.169.254"}` → server fetches `http://169.254.169.254/sitemap.xml` (AWS/GCP metadata, internal admin, localhost). `sitemap-drift?host=` accepts arbitrary `http://` host and recurses 50 deep. `redirect: follow` means even a guarded first hop could 302→metadata. | Route all four fetches through `assertSafeOutboundUrl`; set `redirect:"manual"` + re-validate each hop (copy the `fetchAndExtract` loop); gate both routes. |
+
+### 15B. 🟠 High
+
+| # | Phase | File:line | Problem | Fix |
+|---|-------|-----------|---------|-----|
+| H1 | sec | `app/api/competitors/freshness/route.ts`, `app/api/competitors/serp-overlap/route.ts` | **No auth, no rate limit** (sibling `/api/competitors/route.ts:18` has `gateLlmEndpoint`). SSRF (H-vector for C1) + Serper/LLM cost-drain on a single anon request. | Add `gateLlmEndpoint` + Zod to both. |
+| H2 | sec | `lib/api-gate.ts:31`, `app/api/check/route.ts:41`, `check/bulk/route.ts:30`, `drafts/route.ts:42`, `drafts/[id]/route.ts:29` | **API-key compares not timing-safe** (`===`/`!==`) for WEBHOOK + WORKER keys. Only `CRON_SECRET` (`cron-auth.ts:23`) and OAuth state use `timingSafeEqual`. String `===` short-circuits at first differing byte → length/prefix side channel. | Length-checked `crypto.timingSafeEqual` helper for all four (mirror `cron-auth.ts`). |
+| H3 | sec | `lib/rate-limit.ts:35-41` | **Rate limit bypassable** — trusts leftmost `X-Forwarded-For`; rotate header → fresh bucket. Only protection on `/check`, `/summarize`, `/competitors`, `/outcome`, `/owner` when webhook key unset (default). Billing-DoS. | On Vercel use platform client IP / trust only rightmost XFF hop. |
+| H4 | sec | `app/api/check/outcome/route.ts:35`, `app/api/pages/owner/route.ts:36` | **Unauthenticated arbitrary DB writes** in default config: any anon can rewrite `checks.outcome` (corrupts leadership metrics) and repoint any page's `owner_url` (drives `conflict.ts:73` redirect logic). Gate degrades to H3. Code comment admits "NextAuth gating belongs here once #33 ships." | Require session or webhook key unconditionally, not rate-limit-as-auth. |
+| H5 | db | scripts/*, `lib/conflict.ts:200`, `lib/competitors.ts:181` | **No code guard on `DATABASE_URL`.** Every script + persist-by-default `runConflictCheck`/`competitors` writes to whatever URL is set. `scripts/cleanup-junk-pages.ts` + `scripts/reclassify-home.ts` are **destructive** (DELETE/UPDATE) with no dry-run/confirm. Point at shared prod Neon → direct prod writes/deletes. Only operator discipline protects prod. | Refuse destructive scripts unless `ALLOW_PROD_WRITES=1` or URL host ≠ prod host. |
+| H6 | deps | `package.json`, missing `eslint.config.*` | **Lint is dead.** `next lint` removed in Next 16 (CLI parses `lint` as a dir → exit 1); no ESLint config or dep. Zero linting since the Next 16 bump. | Migrate to flat-config ESLint + `eslint-config-next`; fix the `lint` script. |
+| H7 | deps | `package.json` (`@xenova/transformers@^2.17.2`) | **1 critical + 3 high vulns** — `protobufjs` ACE via `onnx-proto`→`onnxruntime-web`→`@xenova/transformers`. Runtime uses `-node` path so not directly exercised, but the tree ships vulnerable. | Migrate to `@huggingface/transformers` v3, or `EMBEDDING_PROVIDER=openai` and drop the dep. |
+| H8 | code | whole repo | **Zero tests.** No runner, no `*.test.ts`. Violates the repo's own rule. Highest-value gaps: `lib/ssrf-guard.ts` (security), `lib/conflict.ts`/`lib/score.ts` (`impactWeighted` already regressed once per Session 8), `lib/ai/chat-base.ts` `sanitizeForPrompt`/`parseJson`. | Add vitest; cover ssrf-guard, conflict, score, chat-base helpers first. |
+| H9 | deps | `package.json` | **`next-auth: ^5.0.0-beta.31`** — beta on the auth boundary with a caret range (pre-release API churn). | Pin exact; track v5 stable. |
+
+### 15C. 🟡 Medium
+
+- **Draft pipeline bypasses the AI abstraction.** `lib/drafts/runtime.ts:19,115` news up raw `groq-sdk`, duplicating the `LLM_KILL_SWITCH` check (`:73`) and the Groq model default (`GROQ_MODEL` vs `GROQ_MODEL_DRAFT`). `AI_CHAT_PROVIDER` can't reach drafts. The single biggest architectural inconsistency — should extend `BaseChatProvider`.
+- **Embedding dim `384` hardcoded in 5 sites** (docs say 4 — missing `drizzle/0007_pregenerated_drafts.sql:23`; others: `drizzle/0000_init.sql:17,33`, `lib/db/schema.ts:17` `EMBED_DIM`, `lib/ai/embed-local.ts:21`, `scripts/ingest.ts`). `EmbeddingProvider.dimensions` is **not** bound to `EMBED_DIM`; `embed-openai.ts:30` returns 1536-dim vectors that fail to insert into `vector(384)` at runtime with no compile guard. Add a startup assertion `getEmbedder().dimensions === EMBED_DIM`.
+- **Silent AI empty returns** — `lib/ai/chat-base.ts:151,201,269,287` return empty summaries / `[]` verdicts on parse failure with **no log**; degraded LLM output is indistinguishable from "no conflicts." Log via `log.warn`.
+- **`CRON_SECRET` ships as known placeholder** `change-me-to-a-long-random-string` in `.env.example:59`; copy-verbatim to prod = guessable cron secret.
+- **8 env vars read by code but undocumented** in `.env.example`: `WORKER_API_KEY`, `LLM_KILL_SWITCH`, `DRAFT_PROVIDER`, `CLAUDE_MODEL`, `AGY_MODEL`, `GROQ_MODEL_DRAFT`, `DRAFT_POLL_MS`, `LOG_LEVEL`.
+- **`vercel.json` declares 3 crons** (`reingest`, `audit-links`, `gsc-snapshot`) vs documented Vercel Hobby 2-cron cap — one silently won't schedule unless on Pro. No route drift (all three handlers exist).
+- **GSC OAuth tokens stored plaintext** (`lib/gsc.ts:36`); read-leak of `gsc_connections` = long-lived Search Console refresh token.
+- **`/api/cron/reingest` has no resume cursor** — 300s timeout mid-corpus (2,461 URLs) → re-crawl from 0 (embedding-quota waste) or unreached tail. Manual workaround only (`SELECT max(ingested_at)`).
+- **Verbose error messages** — `/check`, `/check/bulk`, `/drafts`, `sitemap-drift`, competitor routes return `(e as Error).message` to clients; SSRF-guard strings leak internal IP ranges (aids blind probing). Return generic; log server-side.
+- **DNS-rebinding TOCTOU** even in the guarded path — `ssrf-guard.ts` validates the IP but returns the hostname; `extract.ts:164` re-resolves. Bind the connection to the validated IP.
+
+### 15D. 🟢 Low
+
+- Schema drift: `pages.cluster_id/http_status/last_audited_at` + tables `clusters`/`rate_limits`/`gsc_daily_totals` exist in SQL but absent from the Drizzle schema (raw-SQL-only, no type safety).
+- `console.*` → `lib/logger.ts` migration ~20% done; two logging systems coexist (`runtime.ts:100`, `drafts/route.ts:130`, `rate-limit.ts:123`, `cron/reingest:37`, `db/index.ts:8`). `requireSession` copy-pasted per-route instead of extracted to `lib/api-gate.ts`.
+- UI layer + raw-SQL results heavily `any`-typed; existing `rowsOf<T>()` helper should replace the `as any[]` sites (`scripts/ingest.ts:59`, `cluster.ts:146`, `gsc.ts:55`, `(dashboard)/page.tsx:78`).
+- `@types/node: ^20` vs Node 22; `@types/jsdom` 28 vs jsdom 29; jsdom one major behind (v30). Stale `.next/` validators reference two non-existent routes (`app/api/pages/export`, `.../import`) — `rm -rf .next` clears.
+
+### 15E. Real command output captured
+
+- **`npm run typecheck` → exit 0 (PASS).** Only stale `.next/**` generated validators reference two non-existent routes; real source passes `strict` type-checking.
+- **`npm run lint` → exit 1 (BROKEN).** `next lint` removed in Next 16 → "Invalid project directory provided, no such directory: …/lint". No ESLint config/dep. (H6)
+- **`npm audit --omit=dev` → 6 vulns (1 critical, 3 high, 2 moderate)**, all rooted in `@xenova/transformers` v2. (H7)
+
+### 15F. Verified clean (in scope, no action)
+
+SQL injection — none (all parameterized, incl. `unnest(...::type[])` batch inserts). LLM prompt injection — defended (`<data>` tagging + Zod-validated output in `chat-base.ts:170`). Secrets in git — only `.env.example` tracked, no values; `.gitignore` correct (`.env`, `.env.*`, `!.env.example`). Migrations — fully idempotent (`IF NOT EXISTS` throughout), non-destructive, safe to re-run. Cron auth — fails closed, length-checked `timingSafeEqual`. `next.config.ts`/`tsconfig.json` — `strict:true`, no `ignoreBuildErrors`/`ignoreDuringBuilds` escape hatches. Security headers present in `next.config.ts`.
+
+### 15G. Fix order (this session)
+
+1. **C1 + H1 + H4** — SSRF guard on the 4 fetches + real auth on freshness/serp-overlap/outcome/owner. *(one focused branch, biggest risk reduction)*
+2. **H3 + H2** — stop trusting client XFF; timing-safe key compares.
+3. **H5** — env guard refusing destructive scripts against the prod host.
+4. **H6 + H7** — restore ESLint; drop `@xenova/transformers` for HF v3 or OpenAI embeddings.
+5. **H8** — vitest + cover ssrf-guard, conflict, score, chat-base sanitize.
+
+---
+
+## 16. Session 11 — Audit fixes shipped (2026-07-06)
+
+Branch `fix/audit-security-cluster-1`, **pushed to `origin` in batches**
+(one push per verified cluster). Every commit verified green with
+`npm run typecheck` + `npm run lint` + `npm run test` before push. Awaiting
+review / PR. Only **H7** (dep migration) and the DNS-rebind IP-pin remain —
+both deferred with rationale in §16B.
+
+### 16A. Shipped ✅ (first wave — security/high)
+
+| Audit | Fix | Files |
+|-------|-----|-------|
+| **C1** | New `lib/safe-fetch.ts` (`safeFetch`) — SSRF guard + manual-redirect re-validation on every hop. Wired into the 3 raw fetches in `lib/competitors-extra.ts` (sitemap candidates, sitemap-index child, freshness sampler) and the `sitemap-drift` crawl. Cloud-metadata/RFC1918/loopback now unreachable from these paths. | `lib/safe-fetch.ts`, `lib/competitors-extra.ts`, `app/api/sitemap-drift/route.ts` |
+| **H1** | `gateLlmEndpoint` added to `/api/competitors/freshness`, `/serp-overlap`, and `/api/sitemap-drift` (were fully ungated). `sitemap-drift` host param validated (absolute http/https only). | those 3 routes |
+| **H2** | New `lib/secure-compare.ts` (`secureEquals`, constant-time). Replaces `===`/`!==` on WEBHOOK/WORKER keys in `api-gate`, `check`, `check/bulk`, `drafts`, `drafts/[id]`. | `lib/secure-compare.ts` + 5 routes |
+| **H3** | `clientIp` no longer trusts the spoofable leftmost `X-Forwarded-For`; prefers `x-real-ip`, else the rightmost (trusted-proxy) hop. Closes the rotate-a-header rate-limit bypass. | `lib/rate-limit.ts` |
+| **H4** | New `gateWriteEndpoint` (key OR session, rate-limit only when neither is configured). Applied to `/api/check/outcome` + `/api/pages/owner` — a dashboard-only prod now requires a session for these DB writes. | `lib/api-gate.ts` + 2 routes |
+| **H5** | New `lib/db/prod-guard.ts` (`assertProdWritesAllowed`). Destructive scripts (`cleanup-junk-pages --delete`, `reclassify-home`) refuse to run against `PROD_DATABASE_HOST` unless `ALLOW_PROD_WRITES=1`. Opt-in (warns when unconfigured). | `lib/db/prod-guard.ts`, 2 scripts |
+| **H6** | Restored the dead lint gate — `next lint` was removed in Next 16. Added `eslint` + `eslint-config-next` (native flat config), `eslint.config.mjs`, `lint` → `eslint .`. Two never-enforced rules (`no-unescaped-entities`, `set-state-in-effect`) kept as warnings for burn-down. Now 0 errors. | `eslint.config.mjs`, `package.json` |
+| **H8** | Added **vitest** (`test`/`test:watch`) + tests: `secureEquals`, `clientIp` (H3 no-spoof), SSRF-guard scheme + forbidden-literal-IP paths, `assertProdWritesAllowed`. Extended in the 2nd wave (below) to `score.ts`, `impactWeighted`, `chat-base` parse/sanitize, `crypto-tokens`, reingest deadline — **60 tests total**. | `vitest.config.ts`, `*.test.ts` |
+| **H9** | Pinned `next-auth` to exact `5.0.0-beta.31` (was `^`) so a new beta can't auto-land on the auth boundary. | `package.json` |
+| **M-3a** | Documented the 8 previously-undocumented env vars in `.env.example` (`WORKER_API_KEY`, `LLM_KILL_SWITCH`, `GROQ_MODEL_DRAFT`, `DRAFT_PROVIDER`, `CLAUDE_MODEL`, `AGY_MODEL`, `DRAFT_POLL_MS`, `LOG_LEVEL`) + warned against shipping the literal `CRON_SECRET` placeholder. | `.env.example` |
+
+### 16A-2. Shipped ✅ (second wave — mediums / lows)
+
+| Audit | Fix | Files |
+|-------|-----|-------|
+| **M2** | GSC OAuth tokens encrypted at rest — new `lib/crypto-tokens.ts` (AES-256-GCM, key from `GSC_TOKEN_KEY`\|`AUTH_SECRET`, `enc:v1:` envelope). Encrypt on save / decrypt on read; legacy plaintext rows pass through. | `lib/crypto-tokens.ts`, `lib/gsc.ts`, `.env.example` |
+| **M4** | Stop leaking internals to clients — new `lib/api-error.ts` (`errorResponse`) logs the real error server-side, returns a generic message. Swept across **26 API routes**. Closes the SSRF-guard string leak that aided internal-network mapping. Response shapes + status codes preserved. | `lib/api-error.ts` + 26 routes |
+| **M (embed dim)** | `getEmbedder()` asserts provider `.dimensions === EMBED_DIM` — switching to OpenAI (1536) without widening `vector(384)` now fails fast with an actionable error instead of a silent INSERT failure. | `lib/ai/index.ts` |
+| **M (silent AI)** | `log.warn` at all 4 chat-base sites where a malformed LLM reply degrades to empty output (was indistinguishable from "nothing"). | `lib/ai/chat-base.ts` |
+| **M (kill-switch)** | De-duplicated the `LLM_KILL_SWITCH` contract into `lib/ai/kill-switch.ts`; `BaseChatProvider` + `drafts/runtime` both call it (was two copies). | `lib/ai/kill-switch.ts`, `chat-base.ts`, `runtime.ts` |
+| **M (reingest cursor)** | Reingest is now resumable + time-boxed: work-first prefilter (only missing/changed URLs), `runIngestPool` `deadlineMs` stops ~30s before the 300s ceiling and returns real partial counts (`remaining`/`stopped`). Next run resumes. | `app/api/cron/reingest/route.ts`, `lib/ingest-page.ts` |
+| **M (cron cap)** | Consolidated `vercel.json` to 2 scheduled crons (Hobby-safe); `audit-links` moved to on-demand. | `vercel.json`, `AGENTS.md` |
+| **Low (schema drift)** | Added `pages.http_status/last_audited_at/cluster_id` + `clusters`/`gsc_daily_totals`/`rate_limits` table objects to the Drizzle schema. | `lib/db/schema.ts` |
+| **Low (logging)** | Migrated remaining `console.*` → `lib/logger` in `rate-limit`, `db/index`, `drafts/runtime`. | those files |
+| **Low (deps)** | Removed the dead `jsdom` + `@types/jsdom` dependency; bumped `@types/node` ^20 → ^22. | `package.json` |
+| **Low (lint burndown)** | Fixed the 14 `no-unescaped-entities`; annotated the 12 canonical `set-state-in-effect` sites; promoted both rules back to `error`. `eslint .` → 0 warnings. | `eslint.config.mjs`, dashboard `*.tsx` |
+
+### 16B. Deferred (2 items, with rationale)
+
+- **H7 — `@xenova/transformers` v2 vulns (1 critical + 3 high).** Deferred intentionally: the fix is a migration to `@huggingface/transformers` v3 (rewrites `lib/ai/embed-local.ts` + `next.config` `serverExternalPackages`) or a switch to OpenAI embeddings — both need a live model-download / embedding-parity verification pass, not a same-session dep bump. Mitigating: runtime uses `onnxruntime-node`, not the vulnerable `-web`/`protobufjs` chain. **Own task.**
+- **M3 — DNS-rebind IP-pin.** True pinning requires a custom `undici` dispatcher that binds the socket to the pre-validated IP, which risks breaking TLS SNI / `Host` handling on Vercel. Residual risk is bounded by the **per-hop re-validation** already in `safe-fetch.ts` / `extract.ts` (every redirect target is re-checked, and `redirect:"manual"` prevents a public host 302→metadata). Left as an accepted, mitigated residual rather than ship a risky low-level fetch change unverifiable in this session.
+
+### 16C. Lessons
+
+- **"Rate-limit as auth" only holds if the limiter can't be bypassed.** H3 (spoofable XFF) silently voided the H4/outcome/owner protection and every `gateLlmEndpoint` fallback. Fixing the limiter was higher-leverage than any single endpoint patch — one root cause under many findings.
+- **A dead quality gate hides for a long time.** `next lint` had been erroring out since the Next 16 bump with nobody noticing; the gate reported "no lint errors" by never running. Restoring it surfaced 26 real (if minor) issues. Verify gates actually execute, not just exit 0.
+- **"Finish everything" still means deferring what can't be verified.** H7 (embedding-lib swap) and M3 (socket-level IP pinning) were the two items whose *correct* fix can't be proven without a live model download / a Vercel TLS test. Shipping them blind would trade a documented, mitigated risk for an unverified regression. Deferring with written rationale is the honest completion, not a gap.

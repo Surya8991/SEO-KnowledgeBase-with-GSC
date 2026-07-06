@@ -126,16 +126,29 @@ export async function runIngestPool(
     concurrency?: number;
     checkExistingEmbedding?: boolean;
     onError?: (url: string, err: Error) => void;
+    /**
+     * Absolute epoch-ms deadline. Workers stop pulling NEW entries once this
+     * passes and drain in-flight work, so a time-boxed caller (e.g. a 300s
+     * Vercel cron) returns partial counts instead of being hard-killed with no
+     * result. `stopped` in the return is true when the deadline was hit before
+     * the queue drained. Omit for no time limit (scripts).
+     */
+    deadlineMs?: number;
   } = {},
-): Promise<{ done: number; skipped: number; failed: number }> {
+): Promise<{ done: number; skipped: number; failed: number; stopped: boolean }> {
   const concurrency = opts.concurrency ?? 10;
   let cursor = 0;
   let done = 0;
   let skipped = 0;
   let failed = 0;
+  let stopped = false;
 
   async function worker() {
     while (cursor < entries.length) {
+      if (opts.deadlineMs && Date.now() >= opts.deadlineMs) {
+        stopped = true;
+        return;
+      }
       const i = cursor++;
       const entry = entries[i];
       if (!entry) continue;
@@ -154,5 +167,5 @@ export async function runIngestPool(
   }
 
   await Promise.all(Array.from({ length: concurrency }, worker));
-  return { done, skipped, failed };
+  return { done, skipped, failed, stopped };
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { buildInsights } from "@/lib/gsc-insights";
 import type { RangeKey } from "@/lib/gsc";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,9 +46,9 @@ export async function POST(request: NextRequest) {
     );
     return NextResponse.json(insights);
   } catch (e) {
-    return NextResponse.json(
-      { error: (e as Error).message || "GSC query failed." },
-      { status: 500 },
-    );
+    return errorResponse("/api/gsc/insights", e, {
+      status: 500,
+      publicMessage: "GSC query failed.",
+    });
   }
 }
