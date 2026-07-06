@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 import { querySearchAnalytics, type RangeKey } from "@/lib/gsc";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,9 +42,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ range, startDate, endDate, rows });
   } catch (e) {
-    return NextResponse.json(
-      { error: (e as Error).message || "GSC query failed." },
-      { status: 500 },
-    );
+    return errorResponse("/api/gsc/query", e, {
+      status: 500,
+      publicMessage: "GSC query failed.",
+    });
   }
 }

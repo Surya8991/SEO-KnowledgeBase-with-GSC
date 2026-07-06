@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db, neonRows } from "@/lib/db";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,9 +57,10 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json({ history: histRows, latest, matches });
   } catch (e) {
-    return NextResponse.json(
-      { error: (e as Error).message, rows: [] },
-      { status: 500 },
-    );
+    return errorResponse("/api/check/history", e, {
+      status: 500,
+      publicMessage: "Request failed.",
+      extra: { rows: [] },
+    });
   }
 }

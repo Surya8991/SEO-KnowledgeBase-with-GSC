@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pageDrilldown } from "@/lib/gsc-insights";
 import type { RangeKey } from "@/lib/gsc";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +16,9 @@ export async function POST(request: NextRequest) {
     const data = await pageDrilldown(page, range);
     return NextResponse.json(data);
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return errorResponse("/api/gsc/page-detail", e, {
+      status: 500,
+      publicMessage: "Request failed.",
+    });
   }
 }

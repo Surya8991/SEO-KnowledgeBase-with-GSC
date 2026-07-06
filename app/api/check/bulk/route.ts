@@ -3,6 +3,7 @@ import { z } from "zod";
 import { runConflictCheck } from "@/lib/conflict";
 import { clientIp, consume, denied } from "@/lib/rate-limit";
 import { secureEquals } from "@/lib/secure-compare";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -78,9 +79,9 @@ export async function POST(request: NextRequest) {
     await Promise.all(Array.from({ length: concurrency }, worker));
     return NextResponse.json({ results });
   } catch (e) {
-    return NextResponse.json(
-      { error: (e as Error).message || "Bulk check failed." },
-      { status: 500 },
-    );
+    return errorResponse("/api/check/bulk", e, {
+      status: 500,
+      publicMessage: "Bulk check failed.",
+    });
   }
 }
