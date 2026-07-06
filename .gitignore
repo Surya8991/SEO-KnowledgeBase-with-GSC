@@ -46,3 +46,6 @@ yarn-error.log*
 
 # Local Transformers.js model cache (downloaded on first embed)
 .cache/
+
+# Local-only operator report scripts (GSC-based; not for the repo)
+scripts/local-*.ts
