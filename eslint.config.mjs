@@ -14,21 +14,11 @@ const eslintConfig = [
       "next-env.d.ts",
     ],
   },
-  {
-    // Two rules that ship as errors in the Next 16 / React 19 config but were
-    // NEVER enforced here (the lint gate was dead — audit H6). Turning them
-    // into hard errors now would block all work on ~26 pre-existing hits, none
-    // of which are correctness bugs:
-    //   - no-unescaped-entities: cosmetic (visible text renders fine either way)
-    //   - set-state-in-effect: flags the canonical reset-on-filter / load-on-mount
-    //     / close-drawer-on-route patterns already used across the dashboard.
-    // Kept as WARNINGS so they stay visible for burn-down (audit backlog) without
-    // a red gate. Promote back to "error" once the existing hits are cleared.
-    rules: {
-      "react/no-unescaped-entities": "warn",
-      "react-hooks/set-state-in-effect": "warn",
-    },
-  },
+  // Session 11 audit H6 follow-up: the ~26 pre-existing hits for
+  // react/no-unescaped-entities and react-hooks/set-state-in-effect have been
+  // burned down (escaped / annotated with justified per-line disables), so both
+  // rules run at their eslint-config-next default severity (error) again — no
+  // override needed. New accidental misuse is now a hard failure.
 ];
 
 export default eslintConfig;

@@ -76,6 +76,7 @@ export default function CorpusPage() {
 
   // Reset to page 1 whenever filters change
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset/sync on dependency change
     setPage(1);
     load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps

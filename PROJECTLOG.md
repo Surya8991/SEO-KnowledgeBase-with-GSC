@@ -1647,11 +1647,13 @@ SQL injection — none (all parameterized, incl. `unnest(...::type[])` batch ins
 
 ## 16. Session 11 — Audit fixes shipped (2026-07-06)
 
-Branch `fix/audit-security-cluster-1`. Commit-per-cluster, verified with
-`npm run typecheck` + `npm run lint` + `npm run test` (all green) before each
-commit. **Not pushed** — awaiting review.
+Branch `fix/audit-security-cluster-1`, **pushed to `origin` in batches**
+(one push per verified cluster). Every commit verified green with
+`npm run typecheck` + `npm run lint` + `npm run test` before push. Awaiting
+review / PR. Only **H7** (dep migration) and the DNS-rebind IP-pin remain —
+both deferred with rationale in §16B.
 
-### 16A. Shipped ✅
+### 16A. Shipped ✅ (first wave — security/high)
 
 | Audit | Fix | Files |
 |-------|-----|-------|
@@ -1662,18 +1664,33 @@ commit. **Not pushed** — awaiting review.
 | **H4** | New `gateWriteEndpoint` (key OR session, rate-limit only when neither is configured). Applied to `/api/check/outcome` + `/api/pages/owner` — a dashboard-only prod now requires a session for these DB writes. | `lib/api-gate.ts` + 2 routes |
 | **H5** | New `lib/db/prod-guard.ts` (`assertProdWritesAllowed`). Destructive scripts (`cleanup-junk-pages --delete`, `reclassify-home`) refuse to run against `PROD_DATABASE_HOST` unless `ALLOW_PROD_WRITES=1`. Opt-in (warns when unconfigured). | `lib/db/prod-guard.ts`, 2 scripts |
 | **H6** | Restored the dead lint gate — `next lint` was removed in Next 16. Added `eslint` + `eslint-config-next` (native flat config), `eslint.config.mjs`, `lint` → `eslint .`. Two never-enforced rules (`no-unescaped-entities`, `set-state-in-effect`) kept as warnings for burn-down. Now 0 errors. | `eslint.config.mjs`, `package.json` |
-| **H8** (started) | Added **vitest** (`test`/`test:watch`) + **31 tests**: `secureEquals`, `clientIp` (H3 no-spoof), SSRF-guard scheme + forbidden-literal-IP paths, `assertProdWritesAllowed`. | `vitest.config.ts`, `*.test.ts` |
+| **H8** | Added **vitest** (`test`/`test:watch`) + tests: `secureEquals`, `clientIp` (H3 no-spoof), SSRF-guard scheme + forbidden-literal-IP paths, `assertProdWritesAllowed`. Extended in the 2nd wave (below) to `score.ts`, `impactWeighted`, `chat-base` parse/sanitize, `crypto-tokens`, reingest deadline — **60 tests total**. | `vitest.config.ts`, `*.test.ts` |
 | **H9** | Pinned `next-auth` to exact `5.0.0-beta.31` (was `^`) so a new beta can't auto-land on the auth boundary. | `package.json` |
 | **M-3a** | Documented the 8 previously-undocumented env vars in `.env.example` (`WORKER_API_KEY`, `LLM_KILL_SWITCH`, `GROQ_MODEL_DRAFT`, `DRAFT_PROVIDER`, `CLAUDE_MODEL`, `AGY_MODEL`, `DRAFT_POLL_MS`, `LOG_LEVEL`) + warned against shipping the literal `CRON_SECRET` placeholder. | `.env.example` |
 
-### 16B. Deferred / outstanding
+### 16A-2. Shipped ✅ (second wave — mediums / lows)
+
+| Audit | Fix | Files |
+|-------|-----|-------|
+| **M2** | GSC OAuth tokens encrypted at rest — new `lib/crypto-tokens.ts` (AES-256-GCM, key from `GSC_TOKEN_KEY`\|`AUTH_SECRET`, `enc:v1:` envelope). Encrypt on save / decrypt on read; legacy plaintext rows pass through. | `lib/crypto-tokens.ts`, `lib/gsc.ts`, `.env.example` |
+| **M4** | Stop leaking internals to clients — new `lib/api-error.ts` (`errorResponse`) logs the real error server-side, returns a generic message. Swept across **26 API routes**. Closes the SSRF-guard string leak that aided internal-network mapping. Response shapes + status codes preserved. | `lib/api-error.ts` + 26 routes |
+| **M (embed dim)** | `getEmbedder()` asserts provider `.dimensions === EMBED_DIM` — switching to OpenAI (1536) without widening `vector(384)` now fails fast with an actionable error instead of a silent INSERT failure. | `lib/ai/index.ts` |
+| **M (silent AI)** | `log.warn` at all 4 chat-base sites where a malformed LLM reply degrades to empty output (was indistinguishable from "nothing"). | `lib/ai/chat-base.ts` |
+| **M (kill-switch)** | De-duplicated the `LLM_KILL_SWITCH` contract into `lib/ai/kill-switch.ts`; `BaseChatProvider` + `drafts/runtime` both call it (was two copies). | `lib/ai/kill-switch.ts`, `chat-base.ts`, `runtime.ts` |
+| **M (reingest cursor)** | Reingest is now resumable + time-boxed: work-first prefilter (only missing/changed URLs), `runIngestPool` `deadlineMs` stops ~30s before the 300s ceiling and returns real partial counts (`remaining`/`stopped`). Next run resumes. | `app/api/cron/reingest/route.ts`, `lib/ingest-page.ts` |
+| **M (cron cap)** | Consolidated `vercel.json` to 2 scheduled crons (Hobby-safe); `audit-links` moved to on-demand. | `vercel.json`, `AGENTS.md` |
+| **Low (schema drift)** | Added `pages.http_status/last_audited_at/cluster_id` + `clusters`/`gsc_daily_totals`/`rate_limits` table objects to the Drizzle schema. | `lib/db/schema.ts` |
+| **Low (logging)** | Migrated remaining `console.*` → `lib/logger` in `rate-limit`, `db/index`, `drafts/runtime`. | those files |
+| **Low (deps)** | Removed the dead `jsdom` + `@types/jsdom` dependency; bumped `@types/node` ^20 → ^22. | `package.json` |
+| **Low (lint burndown)** | Fixed the 14 `no-unescaped-entities`; annotated the 12 canonical `set-state-in-effect` sites; promoted both rules back to `error`. `eslint .` → 0 warnings. | `eslint.config.mjs`, dashboard `*.tsx` |
+
+### 16B. Deferred (2 items, with rationale)
 
 - **H7 — `@xenova/transformers` v2 vulns (1 critical + 3 high).** Deferred intentionally: the fix is a migration to `@huggingface/transformers` v3 (rewrites `lib/ai/embed-local.ts` + `next.config` `serverExternalPackages`) or a switch to OpenAI embeddings — both need a live model-download / embedding-parity verification pass, not a same-session dep bump. Mitigating: runtime uses `onnxruntime-node`, not the vulnerable `-web`/`protobufjs` chain. **Own task.**
-- **H8 remainder** — still need tests for `conflict.ts` (`impactWeighted`, scoring blend) and `chat-base.ts` (`sanitizeForPrompt`, `parseJson`). Harness is now in place.
-- **Mediums not yet done** — draft pipeline abstraction leak (raw `groq-sdk` in `runtime.ts`); bind `EMBED_DIM` to provider dimension + startup assert (5-site 384 coupling); log the silent AI empty returns; GSC token encryption at rest; `reingest` resume cursor; verbose error-message leakage; DNS-rebind IP-binding; `vercel.json` 3-vs-2 cron cap.
-- **Lows** — schema drift (`pages.cluster_id` etc.), finish `console.*`→`logger` migration, type the `as any[]` SQL sites, `@types/node`→22 / jsdom bump, burn down the 28 lint warnings.
+- **M3 — DNS-rebind IP-pin.** True pinning requires a custom `undici` dispatcher that binds the socket to the pre-validated IP, which risks breaking TLS SNI / `Host` handling on Vercel. Residual risk is bounded by the **per-hop re-validation** already in `safe-fetch.ts` / `extract.ts` (every redirect target is re-checked, and `redirect:"manual"` prevents a public host 302→metadata). Left as an accepted, mitigated residual rather than ship a risky low-level fetch change unverifiable in this session.
 
 ### 16C. Lessons
 
 - **"Rate-limit as auth" only holds if the limiter can't be bypassed.** H3 (spoofable XFF) silently voided the H4/outcome/owner protection and every `gateLlmEndpoint` fallback. Fixing the limiter was higher-leverage than any single endpoint patch — one root cause under many findings.
 - **A dead quality gate hides for a long time.** `next lint` had been erroring out since the Next 16 bump with nobody noticing; the gate reported "no lint errors" by never running. Restoring it surfaced 26 real (if minor) issues. Verify gates actually execute, not just exit 0.
+- **"Finish everything" still means deferring what can't be verified.** H7 (embedding-lib swap) and M3 (socket-level IP pinning) were the two items whose *correct* fix can't be proven without a live model download / a Vercel TLS test. Shipping them blind would trade a documented, mitigated risk for an unverified regression. Deferring with written rationale is the honest completion, not a gap.
