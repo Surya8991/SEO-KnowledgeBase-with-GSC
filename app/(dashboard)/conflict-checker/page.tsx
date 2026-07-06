@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { PageHeader, Card, ConflictBadge, ScoreBar, TypeChip, TYPE_COLORS } from "@/app/components/ui";
+import { PageHeader, Card, ConflictBadge, ScoreBar, TypeChip, TYPE_COLORS, INTENT_STYLE, ACTION_STYLE, type Intent, type ClusterAction } from "@/app/components/ui";
 import { Pagination } from "@/app/components/Pagination";
 import { toast } from "@/app/components/Toast";
 import { scoreBarColor as bandBarColor, scoreTextColor as bandTextColor, intentStage } from "@/lib/score-bands";
@@ -19,6 +19,11 @@ interface Match {
   ownerUrl?: string | null;
   gscClicks28d?: number | null;
   gscImpressions28d?: number | null;
+  // Phase-1 multi-signal automation (Group 4). Optional so older cached
+  // history rows without these fields still render.
+  signals?: { title: number; h1: number; slug: number; body: number };
+  intent?: Intent;
+  resolution?: { action: ClusterAction; winnerUrl?: string; reason: string };
 }
 interface CheckResult {
   inputType: string;
@@ -29,6 +34,7 @@ interface CheckResult {
   topScore: number;
   matches: Match[];
   checkId?: number;
+  inputIntent?: Intent;
 }
 
 interface PageStat {
@@ -1012,6 +1018,47 @@ function MatchCard({
           <ConflictBadge type={m.conflictType} />
         </div>
       </div>
+
+      {/* ── MULTI-SIGNAL AUTOMATION (Group 4) ──────────────────────
+          Deterministic per-signal breakdown + rule-based intent + the
+          resolution action/winner. Kept SEPARATE from the blended score
+          so a reviewer sees *why* two pages conflict. Guarded on m.signals
+          so pre-Phase-1 history rows still render. */}
+      {m.signals && (
+        <div className="mt-4 border-t border-slate-100 pt-3">
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+            {m.intent && (
+              <span className={`inline-flex items-center rounded border px-2 py-0.5 text-[10px] font-medium capitalize ${INTENT_STYLE[m.intent]}`}>
+                {m.intent}
+              </span>
+            )}
+            {m.resolution && (
+              <span
+                className={`inline-flex items-center rounded border px-2 py-0.5 text-[10px] font-semibold ${ACTION_STYLE[m.resolution.action].cls}`}
+                title={m.resolution.reason}
+              >
+                {ACTION_STYLE[m.resolution.action].label}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 sm:grid-cols-4">
+            {([["Title", m.signals.title], ["H1", m.signals.h1], ["Slug", m.signals.slug], ["Body", m.signals.body]] as const).map(
+              ([label, val]) => (
+                <div key={label} className="flex items-center gap-2">
+                  <span className="w-10 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</span>
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full bg-slate-400" style={{ width: `${Math.round(val * 100)}%` }} />
+                  </div>
+                  <span className="w-8 text-right text-[11px] tabular-nums text-slate-600">{Math.round(val * 100)}%</span>
+                </div>
+              ),
+            )}
+          </div>
+          {m.resolution?.reason && (
+            <p className="mt-2 text-xs text-slate-500">{m.resolution.reason}</p>
+          )}
+        </div>
+      )}
 
       {/* ── GSC ENRICHMENT ─────────────────────────────────────────
           Inline 3-col grid for the stats panel (no heavy boxed table)

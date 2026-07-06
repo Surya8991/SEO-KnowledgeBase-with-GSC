@@ -6,7 +6,9 @@ interface VectorMatchRow {
   id: number;
   url: string;
   title: string | null;
+  h1: string | null;
   content_type: string | null;
+  token_count: number | null;
   owner_url: string | null;
   gsc_clicks_28d: number | null;
   gsc_impressions_28d: number | null;
@@ -18,7 +20,11 @@ export interface VectorMatch {
   id: number;
   url: string;
   title: string | null;
+  /** Page H1 — needed by the Phase-1 per-signal (title/h1/slug/body) scorer. */
+  h1: string | null;
   contentType: string | null;
+  /** Body token count — winner-authority depth signal. */
+  tokenCount: number | null;
   snippet: string;
   similarity: number; // cosine similarity 0..1
   /** Editorial owner — the URL the team has decided should rank for this
@@ -48,7 +54,7 @@ export async function vectorSearchPages(
   const exclude = opts.excludeUrl ?? "";
 
   const rows = await db.execute(sql`
-    SELECT id, url, title, content_type,
+    SELECT id, url, title, h1, content_type, token_count,
            owner_url, gsc_clicks_28d, gsc_impressions_28d,
            left(coalesce(content_text, meta_description, ''), 600) AS snippet,
            1 - (embedding <=> ${vec}::vector) AS similarity
@@ -63,7 +69,9 @@ export async function vectorSearchPages(
     id: Number(r.id),
     url: r.url,
     title: r.title,
+    h1: r.h1,
     contentType: r.content_type,
+    tokenCount: r.token_count != null ? Number(r.token_count) : null,
     snippet: r.snippet ?? "",
     similarity: Number(r.similarity),
     ownerUrl: r.owner_url ?? null,
