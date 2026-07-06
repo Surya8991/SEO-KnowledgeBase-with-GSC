@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { neon } from "@neondatabase/serverless";
-import { gateLlmEndpoint } from "@/lib/api-gate";
+import { gateWriteEndpoint } from "@/lib/api-gate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,10 +19,10 @@ const BodySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  // H4: gate unconditionally — when WEBHOOK_API_KEY is unset we fall back to
-  // rate-limiting (60 req/min) instead of leaving the endpoint open for
-  // arbitrary DB row updates with zero auth and zero rate-limit.
-  const gate = await gateLlmEndpoint(request, "check-outcome", { max: 60, windowSec: 60 });
+  // H4: this UPDATEs `checks.outcome` — require a real identity (webhook key
+  // or a signed-in session) when either is configured; rate-limit only in the
+  // fully-open dev/default config.
+  const gate = await gateWriteEndpoint(request, "check-outcome", { max: 60, windowSec: 60 });
   if (gate) return gate;
   try {
     const raw = await request.json().catch(() => ({}));
