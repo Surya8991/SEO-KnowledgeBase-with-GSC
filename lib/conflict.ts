@@ -65,7 +65,7 @@ function isUrl(value: string): boolean {
  * Multiplier scale (clicks → factor): 0→1.0, 100→1.25, 1000→1.5, 10k→2.0.
  * Owner-cannibal bonus: +0.25.
  */
-function impactWeighted(m: ConflictMatchResult): number {
+export function impactWeighted(m: ConflictMatchResult): number {
   const clicks = m.gscClicks28d ?? 0;
   const trafficBoost = clicks <= 0 ? 0 : Math.min(1, Math.log10(clicks + 1) / 4);
   // Bonus when this match is a duplicate of the editorial winner (NOT
