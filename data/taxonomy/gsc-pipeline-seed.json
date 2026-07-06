@@ -1,0 +1,202 @@
+[
+  {
+    "kw": "training needs analysis template",
+    "vol": 2900,
+    "rank": 18,
+    "type": "Weak page",
+    "action": "Expand existing blog with downloadable template + add course on TNA methodology",
+    "priority": "High"
+  },
+  {
+    "kw": "onboarding training program",
+    "vol": 2400,
+    "rank": 22,
+    "type": "No course",
+    "action": "Create course page for employee onboarding; blog exists but no course CTA",
+    "priority": "High"
+  },
+  {
+    "kw": "leadership development program for managers",
+    "vol": 1900,
+    "rank": 31,
+    "type": "Weak page",
+    "action": "Revamp thin blog; launch Leadership for New Managers course",
+    "priority": "High"
+  },
+  {
+    "kw": "compliance training for employees",
+    "vol": 1800,
+    "rank": 14,
+    "type": "No course",
+    "action": "Add dedicated compliance training course landing page linked from blog",
+    "priority": "High"
+  },
+  {
+    "kw": "soft skills training for employees",
+    "vol": 1600,
+    "rank": 27,
+    "type": "Weak page",
+    "action": "Consolidate 3 thin blogs into pillar; add bundle course page",
+    "priority": "High"
+  },
+  {
+    "kw": "sales training programs",
+    "vol": 1500,
+    "rank": 35,
+    "type": "No page",
+    "action": "Build blog + course page targeting B2B sales training search intent",
+    "priority": "High"
+  },
+  {
+    "kw": "project management certification courses",
+    "vol": 1400,
+    "rank": 29,
+    "type": "No course",
+    "action": "Create PMP/CAPM comparison course directory page",
+    "priority": "High"
+  },
+  {
+    "kw": "data analytics training for beginners",
+    "vol": 1300,
+    "rank": 41,
+    "type": "No page",
+    "action": "Create beginner-focused blog + course; high-volume lower competition",
+    "priority": "High"
+  },
+  {
+    "kw": "cybersecurity awareness training",
+    "vol": 1200,
+    "rank": 19,
+    "type": "No course",
+    "action": "Link existing blog to a cybersecurity awareness course page",
+    "priority": "Medium"
+  },
+  {
+    "kw": "agile scrum certification",
+    "vol": 1100,
+    "rank": 33,
+    "type": "Weak page",
+    "action": "Improve blog depth; add Scrum Master course with cert details",
+    "priority": "Medium"
+  },
+  {
+    "kw": "communication skills training",
+    "vol": 1050,
+    "rank": 25,
+    "type": "No course",
+    "action": "Create targeted course page; blog traffic not converting without CTA",
+    "priority": "Medium"
+  },
+  {
+    "kw": "hr training programs",
+    "vol": 980,
+    "rank": 38,
+    "type": "No page",
+    "action": "Build HR-specific landing page targeting this high-intent query",
+    "priority": "Medium"
+  },
+  {
+    "kw": "cloud computing training online",
+    "vol": 950,
+    "rank": 44,
+    "type": "No page",
+    "action": "Create AWS/Azure/GCP training comparison blog + course pages",
+    "priority": "Medium"
+  },
+  {
+    "kw": "executive leadership training",
+    "vol": 880,
+    "rank": 16,
+    "type": "No course",
+    "action": "Blog ranks but no course; add senior leadership program page",
+    "priority": "Medium"
+  },
+  {
+    "kw": "design thinking workshop",
+    "vol": 820,
+    "rank": 28,
+    "type": "No course",
+    "action": "Add workshop-style course page; blog has decent traffic but no conversion path",
+    "priority": "Medium"
+  },
+  {
+    "kw": "diversity and inclusion training",
+    "vol": 780,
+    "rank": 22,
+    "type": "Weak page",
+    "action": "Deepen existing blog; launch D&I training course targeting HR buyers",
+    "priority": "Medium"
+  },
+  {
+    "kw": "python for data science course",
+    "vol": 750,
+    "rank": 47,
+    "type": "No page",
+    "action": "Create beginner Python + data science course page; very high competition but volume justifies effort",
+    "priority": "Medium"
+  },
+  {
+    "kw": "business analysis training",
+    "vol": 710,
+    "rank": 39,
+    "type": "No course",
+    "action": "Strong blog traffic; add BA certification course page",
+    "priority": "Medium"
+  },
+  {
+    "kw": "emotional intelligence training for leaders",
+    "vol": 680,
+    "rank": 21,
+    "type": "No course",
+    "action": "Course page + email nurture for L&D buyers; blog is thin",
+    "priority": "Medium"
+  },
+  {
+    "kw": "supply chain management course",
+    "vol": 650,
+    "rank": 43,
+    "type": "No page",
+    "action": "Build supply chain training hub page; growing post-pandemic demand",
+    "priority": "Low"
+  },
+  {
+    "kw": "rpa training uipath",
+    "vol": 600,
+    "rank": 36,
+    "type": "Weak page",
+    "action": "Partner-style page for UiPath RPA training; high purchase intent",
+    "priority": "Low"
+  },
+  {
+    "kw": "change management certification",
+    "vol": 580,
+    "rank": 31,
+    "type": "No course",
+    "action": "Blog exists; add cert-focused course page for Prosci/ADKAR audience",
+    "priority": "Low"
+  },
+  {
+    "kw": "negotiation skills training",
+    "vol": 540,
+    "rank": 29,
+    "type": "No course",
+    "action": "Short course / microlearning page; quick win given existing blog",
+    "priority": "Low"
+  },
+  {
+    "kw": "product management training",
+    "vol": 510,
+    "rank": 45,
+    "type": "No page",
+    "action": "Build product management training page; growing demand from tech sector",
+    "priority": "Low"
+  },
+  {
+    "kw": "sustainability reporting training",
+    "vol": 490,
+    "rank": 33,
+    "type": "No page",
+    "action": "ESG/CSRD training page; emerging regulatory demand driving search",
+    "priority": "Low"
+  }
+]

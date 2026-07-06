@@ -1,0 +1,122 @@
+[
+  {
+    "rank": 1,
+    "category": "Decision Making",
+    "count": 9,
+    "link": "https://www.edstellar.com/category/decision-making-training"
+  },
+  {
+    "rank": 2,
+    "category": "Health and Well-Being",
+    "count": 9,
+    "link": "https://www.edstellar.com/category/health-and-well-being-training"
+  },
+  {
+    "rank": 3,
+    "category": "Leadership Communication",
+    "count": 12,
+    "link": "https://www.edstellar.com/category/leadership-communication-training"
+  },
+  {
+    "rank": 4,
+    "category": "Workplace Diversity and Inclusion",
+    "count": 13,
+    "link": "https://www.edstellar.com/category/workplace-diversity-and-inclusion-training"
+  },
+  {
+    "rank": 5,
+    "category": "Data Privacy and Security",
+    "count": 14,
+    "link": "https://www.edstellar.com/category/data-privacy-and-security-training"
+  },
+  {
+    "rank": 6,
+    "category": "Product Management",
+    "count": 16,
+    "link": "https://www.edstellar.com/category/product-management-training"
+  },
+  {
+    "rank": 7,
+    "category": "Blockchain and Cryptocurrency",
+    "count": 16,
+    "link": "https://www.edstellar.com/category/blockchain-and-cryptocurrency-training"
+  },
+  {
+    "rank": 8,
+    "category": "IoT",
+    "count": 18,
+    "link": "https://www.edstellar.com/category/iot-training"
+  },
+  {
+    "rank": 9,
+    "category": "Data Science",
+    "count": 18,
+    "link": "https://www.edstellar.com/category/data-science-training"
+  },
+  {
+    "rank": 10,
+    "category": "Workplace Safety",
+    "count": 19,
+    "link": "https://www.edstellar.com/category/workplace-safety-training"
+  },
+  {
+    "rank": 11,
+    "category": "ISO and Other Standards",
+    "count": 19,
+    "link": "https://www.edstellar.com/category/iso-and-other-standards-training"
+  },
+  {
+    "rank": 12,
+    "category": "Risk Management",
+    "count": 22,
+    "link": "https://www.edstellar.com/category/risk-management-training"
+  },
+  {
+    "rank": 13,
+    "category": "Soft Skills",
+    "count": 23,
+    "link": "https://www.edstellar.com/category/soft-skills-training"
+  },
+  {
+    "rank": 14,
+    "category": "Project Management",
+    "count": 24,
+    "link": "https://www.edstellar.com/category/project-management-training"
+  },
+  {
+    "rank": 15,
+    "category": "Operating Systems",
+    "count": 24,
+    "link": "https://www.edstellar.com/category/operating-systems-training"
+  },
+  {
+    "rank": 16,
+    "category": "Virtualization",
+    "count": 24,
+    "link": "https://www.edstellar.com/category/virtualization-training"
+  },
+  {
+    "rank": 17,
+    "category": "Workflow Automation",
+    "count": 25,
+    "link": "https://www.edstellar.com/category/workflow-automation-training"
+  },
+  {
+    "rank": 18,
+    "category": "Marketing",
+    "count": 27,
+    "link": "https://www.edstellar.com/category/marketing-training"
+  },
+  {
+    "rank": 19,
+    "category": "Human Resource",
+    "count": 27,
+    "link": "https://www.edstellar.com/category/human-resource-training"
+  },
+  {
+    "rank": 20,
+    "category": "People Management",
+    "count": 29,
+    "link": "https://www.edstellar.com/category/people-management-training"
+  }
+]

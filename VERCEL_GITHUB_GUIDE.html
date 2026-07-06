@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vercel + GitHub — Step-by-Step Guide</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#121831; --panel2:#0f1530; --border:#1f2747;
+    --text:#e7ecf5; --muted:#9aa6c2; --accent:#7c9cff; --accent2:#22d3ee;
+    --ok:#34d399; --warn:#fbbf24; --danger:#f87171; --code:#0a0f22;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:920px;margin:0 auto;padding:32px 24px 80px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,#7c9cff,#22d3ee);display:flex;align-items:center;justify-content:center;font-weight:800;color:#0b1020}
+  h1{font-size:24px;margin:0}
+  .sub{color:var(--muted);font-size:13px}
+  .envbox{background:var(--panel2);border:1px solid var(--border);padding:10px 12px;border-radius:10px;font-size:13px;color:var(--muted)}
+  .envbox strong{color:var(--text)}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin:18px 0 28px}
+  .toc h3{margin:0 0 8px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .toc ol{margin:0;padding-left:18px}
+  .toc li{margin:4px 0}
+  .step{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px 24px;margin:18px 0}
+  .step h2{margin:0 0 4px;font-size:19px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .step h3{margin:18px 0 6px;font-size:15.5px;color:#cbd5e1}
+  .pill{display:inline-block;font-size:11px;padding:3px 8px;border-radius:999px;font-weight:600;letter-spacing:.04em}
+  .pill.req{background:rgba(248,113,113,.15);color:#fda4af;border:1px solid rgba(248,113,113,.35)}
+  .pill.opt{background:rgba(148,163,184,.15);color:#cbd5e1;border:1px solid rgba(148,163,184,.35)}
+  .pill.done{background:rgba(52,211,153,.15);color:#86efac;border:1px solid rgba(52,211,153,.35)}
+  .pill.tab{background:rgba(124,156,255,.15);color:#a5b4fc;border:1px solid rgba(124,156,255,.35)}
+  .pill.warn{background:rgba(251,191,36,.15);color:#fde68a;border:1px solid rgba(251,191,36,.35)}
+  .time{color:var(--muted);font-size:13px;margin-left:auto}
+  ol.steps{padding-left:22px}
+  ol.steps > li{margin:8px 0}
+  ul{padding-left:22px}
+  ul li{margin:6px 0}
+  code{background:var(--code);padding:2px 6px;border-radius:6px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;color:#e2e8f0;border:1px solid var(--border)}
+  pre{background:var(--code);border:1px solid var(--border);border-radius:10px;padding:12px 14px;overflow:auto;font-size:12.5px;line-height:1.55;position:relative}
+  pre code{background:transparent;border:0;padding:0;color:#cbd5e1}
+  .copy{position:absolute;top:8px;right:8px;background:var(--panel);border:1px solid var(--border);color:var(--text);font-size:11px;padding:4px 8px;border-radius:6px;cursor:pointer}
+  .copy:hover{background:#1c2547}
+  .copy.ok{color:#86efac;border-color:rgba(52,211,153,.45)}
+  .note{background:rgba(124,156,255,.07);border:1px solid rgba(124,156,255,.3);border-radius:10px;padding:10px 12px;color:#dbe4ff;font-size:13.5px;margin:10px 0}
+  .warn{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.35);border-radius:10px;padding:10px 12px;color:#fde68a;font-size:13.5px;margin:10px 0}
+  .danger{background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.35);border-radius:10px;padding:10px 12px;color:#fecaca;font-size:13.5px;margin:10px 0}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13.5px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+  tr:last-child td{border-bottom:0}
+  footer{margin-top:40px;text-align:center;color:var(--muted);font-size:12.5px}
+  kbd{background:var(--panel2);border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:1px 6px;font-family:inherit;font-size:12px}
+  hr{border:0;border-top:1px solid var(--border);margin:24px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand">
+    <div class="logo">CC</div>
+    <div>
+      <h1>Vercel + GitHub — Step-by-Step Guide</h1>
+      <div class="sub">Plain-English walkthrough of every action you'll take in GitHub and Vercel to run this project.</div>
+    </div>
+  </div>
+</header>
+
+<div class="envbox">
+  <strong>If you just want to ship a change:</strong> skip to
+  <a href="#daily">§ 5. Day-to-day: updating production</a>.
+  Everything before that is one-time setup.
+</div>
+
+<div class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#picture">The big picture</a></li>
+    <li><a href="#github">GitHub — the repo</a></li>
+    <li><a href="#vercel">Vercel — first-time setup</a> <span class="pill req">do once</span></li>
+    <li><a href="#crons">Crons — what they do, what they cost</a></li>
+    <li><a href="#update">Updating prod (day-to-day)</a></li>
+    <li><a href="#daily">Day-to-day cheat sheet</a></li>
+    <li><a href="#troubleshoot">Troubleshooting</a></li>
+    <li><a href="#security">Security hygiene</a></li>
+    <li><a href="#ui">Useful Vercel + GitHub UI corners</a></li>
+    <li><a href="#help">When to ask for help</a></li>
+  </ol>
+</div>
+
+<section id="picture" class="step">
+  <h2>0. The big picture</h2>
+  <table>
+    <thead><tr><th>Where</th><th>What lives there</th><th>What you do there</th></tr></thead>
+    <tbody>
+      <tr><td><strong>GitHub</strong><br><code>Layruss98266/Edstellar-Conflict-Checker-KnowledgeBase</code></td><td>Source code + history.</td><td>Push changes. Code reviews. Roll back if needed.</td></tr>
+      <tr><td><strong>Vercel</strong></td><td>The running app at <code>https://&lt;project&gt;.vercel.app</code>. Reads GitHub, builds it.</td><td>Set env vars. Watch builds. Add custom domain. Read function logs.</td></tr>
+      <tr><td><strong>Neon</strong> (Postgres)</td><td>Corpus + check history database.</td><td>Nothing day-to-day — set the connection string once.</td></tr>
+      <tr><td><strong>Groq / Anthropic / Google / Serper</strong></td><td>External APIs the app calls.</td><td>Get keys once, paste into Vercel env vars.</td></tr>
+    </tbody>
+  </table>
+  <div class="note">The flow: <strong>you push to GitHub <code>main</code> → Vercel notices → Vercel builds → if green, prod URL updates in ~90 seconds.</strong></div>
+</section>
+
+<section id="github" class="step">
+  <h2>1. GitHub — the repo</h2>
+
+  <h3>Where it is</h3>
+  <p><a href="https://github.com/Layruss98266/Edstellar-Conflict-Checker-KnowledgeBase">github.com/Layruss98266/Edstellar-Conflict-Checker-KnowledgeBase</a> on the <code>main</code> branch.</p>
+
+  <h3>Clone it once on your laptop</h3>
+<pre><button class="copy">copy</button><code>git clone https://github.com/Layruss98266/Edstellar-Conflict-Checker-KnowledgeBase.git
+cd Edstellar-Conflict-Checker-KnowledgeBase
+npm install
+cp .env.example .env       # fill in real values — see SETUP_GUIDE.md</code></pre>
+
+  <h3>The branch model</h3>
+  <ul>
+    <li><strong><code>main</code></strong> is what Vercel deploys to production. Treat it as always-shippable.</li>
+    <li>For anything bigger than a typo, use a <strong>feature branch</strong> (<code>git checkout -b fix/whatever</code>), open a Pull Request on GitHub, merge to <code>main</code> when ready. Vercel gives you a <strong>Preview URL</strong> for every PR.</li>
+  </ul>
+
+  <h3>The rules you can't break</h3>
+  <div class="danger">
+    <ul style="margin:0">
+      <li><strong>Never commit <code>.env</code></strong> — it has secrets. <code>.gitignore</code> blocks it, but check <code>git status</code> before every commit.</li>
+      <li><strong>Never push directly to <code>main</code></strong> if a teammate is reviewing — open a PR.</li>
+      <li><strong>Never run <code>git push --force</code> on <code>main</code></strong> — it rewrites history Vercel relies on.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="vercel" class="step">
+  <h2>2. Vercel — first-time setup <span class="pill req">do once</span></h2>
+
+  <h3>2.1 Sign in and import the repo</h3>
+  <ol class="steps">
+    <li>Go to <a href="https://vercel.com">vercel.com</a> → <strong>Log In</strong> → choose <strong>Continue with GitHub</strong> (sign in as <code>Layruss98266</code>).</li>
+    <li>From the dashboard, click <strong>Add New… → Project</strong>.</li>
+    <li>Find <code>Edstellar-Conflict-Checker-KnowledgeBase</code> in the list → <strong>Import</strong>.</li>
+    <li><strong>Framework Preset</strong>: Vercel auto-detects <strong>Next.js</strong>. Leave default.</li>
+    <li><strong>Root Directory</strong>: leave as <code>.</code> (the app is at repo root since the flatten).</li>
+    <li><strong>Don't click Deploy yet</strong> — env vars first.</li>
+  </ol>
+
+  <h3>2.2 Add environment variables</h3>
+  <p>Still on the import screen, expand <strong>Environment Variables</strong>. Paste each row from <code>.env.example</code>. For every variable, tick all three environments: <strong>Production</strong>, <strong>Preview</strong>, <strong>Development</strong>.</p>
+
+  <h3>Minimum to actually run</h3>
+  <p>The app will crash without these:</p>
+  <table>
+    <thead><tr><th>Name</th><th>Value</th><th>Where to get it</th></tr></thead>
+    <tbody>
+      <tr><td><code>DATABASE_URL</code></td><td>Neon <strong>pooled</strong> connection string</td><td>Neon dashboard → your project → "Connection string" → toggle <strong>Pooled</strong> → copy</td></tr>
+      <tr><td><code>GROQ_API_KEY</code></td><td>Groq API key starting <code>gsk_…</code></td><td><a href="https://console.groq.com/keys">console.groq.com/keys</a> → Create API Key</td></tr>
+      <tr><td><code>AI_CHAT_PROVIDER</code></td><td><code>groq</code></td><td>literal value</td></tr>
+      <tr><td><code>AI_EMBED_PROVIDER</code></td><td><code>local</code></td><td>literal value</td></tr>
+      <tr><td><code>APP_BASE_URL</code></td><td><code>https://edstellar-conflict-checker-knowledg.vercel.app</code></td><td>Vercel will show this URL after first deploy. Add as placeholder now; update after deploy.</td></tr>
+      <tr><td><code>CRON_SECRET</code></td><td>Long random string, e.g. <code>openssl rand -hex 32</code></td><td><strong>Required in prod</strong> — cron routes fail OPEN if unset; anyone could trigger DB-writing jobs.</td></tr>
+      <tr><td><code>BRAND_TERMS</code></td><td><code>edstellar,edstellar.com</code></td><td>literal value</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Optional — add when you need the feature</h3>
+  <table>
+    <thead><tr><th>Name</th><th>Required for</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>ANTHROPIC_API_KEY</code></td><td>Switching chat provider to Claude</td><td>Then also set <code>AI_CHAT_PROVIDER=claude</code></td></tr>
+      <tr><td><code>OPENAI_API_KEY</code></td><td>Switching to OpenAI for chat or embeddings</td><td>If embeddings: also do the 384→1536 column-widen migration in <code>README.md</code> and re-ingest</td></tr>
+      <tr><td><code>GOOGLE_CLIENT_ID</code> + <code>GOOGLE_CLIENT_SECRET</code> + <code>GOOGLE_REDIRECT_URI</code> + <code>GSC_SITE_URL</code></td><td>The <code>/search-console</code> page</td><td>Follow <code>SETUP_GUIDE.md</code> STEP 2. Prod redirect URI is <code>https://edstellar-conflict-checker-knowledg.vercel.app/api/gsc/callback</code>.</td></tr>
+      <tr><td><code>SERPER_API_KEY</code></td><td>The <code>/competitors</code> page</td><td><a href="https://serper.dev">serper.dev</a> → Sign up → Dashboard shows the key</td></tr>
+      <tr><td><code>WEBHOOK_API_KEY</code></td><td>Gating <code>POST /api/check</code> from a CMS pre-publish hook</td><td>Callers must send header <code>X-API-Key: &lt;value&gt;</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>2.3 Deploy</h3>
+  <ol class="steps">
+    <li>Click <strong>Deploy</strong>.</li>
+    <li>Wait ~90 seconds. The build log streams live.</li>
+    <li>If green, hit <strong>Visit</strong> → opens <code>https://edstellar-conflict-checker-knowledg.vercel.app</code>.</li>
+    <li>If it fails, see <a href="#troubleshoot">§ 6. Troubleshooting</a>.</li>
+  </ol>
+
+  <h3>2.4 First-deploy follow-up — seed the database</h3>
+  <p>The app is up but the database is empty. The Conflict Checker has nothing to compare against until you do this:</p>
+<pre><button class="copy">copy</button><code># From your local laptop, using the SAME DATABASE_URL Vercel has:
+npm run db:setup        # one-time: enable pgvector, create tables (idempotent)
+npm run ingest          # ~20-30 min: crawl + embed every Edstellar URL</code></pre>
+  <div class="warn"><strong>Don't</strong> trigger this from the Vercel cron — <code>/api/cron/reingest</code> walks ~2,461 URLs sequentially, which will hit the function timeout from cold. Always do the initial seed locally. The cron is for incremental updates only.</div>
+  <p>After ingest finishes, open the production URL → paste a URL or topic into <code>/conflict-checker</code> → confirm you get scored matches back.</p>
+
+  <h3>2.5 Custom domain (optional)</h3>
+  <p>Vercel → your project → <strong>Settings → Domains</strong> → add <code>conflict-checker.edstellar.com</code> (or whatever) → follow the DNS instructions Vercel shows (CNAME to <code>cname.vercel-dns.com.</code>). Update <code>APP_BASE_URL</code> + <code>GOOGLE_REDIRECT_URI</code> to the new domain.</p>
+</section>
+
+<section id="crons" class="step">
+  <h2>3. Crons — what they do and what they cost</h2>
+  <p><code>vercel.json</code> schedules three jobs:</p>
+  <table>
+    <thead><tr><th>Path</th><th>Cadence</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><code>/api/cron/reingest</code></td><td>Weekly (Sun 03:00 UTC)</td><td>Recrawl sitemap URLs whose <code>lastmod</code> changed; re-embed.</td></tr>
+      <tr><td><code>/api/cron/audit-links</code></td><td>Weekly (Sun 04:00 UTC)</td><td>HEAD-check every URL; write status to <code>pages.http_status</code>.</td></tr>
+      <tr><td><code>/api/cron/gsc-snapshot</code></td><td>Daily (05:30 UTC)</td><td>Snapshot yesterday's GSC totals into <code>gsc_daily_totals</code>.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Plan limits</h3>
+  <div class="warn">
+    <ul style="margin:0">
+      <li><strong>Hobby (free)</strong> — max <strong>2 crons</strong>, <strong>daily-or-longer</strong> cadence, <strong>60 s</strong> function timeout. Current config has 3 crons → <strong>Hobby will reject one</strong>.</li>
+      <li><strong>Pro ($20/mo)</strong> — removes those caps. You need Pro to run this config as-is.</li>
+    </ul>
+  </div>
+  <p>If you want to stay on Hobby, edit <code>vercel.json</code> to drop one of the weekly crons (e.g. remove <code>/api/cron/audit-links</code> and run it manually with <code>npm run audit:links</code> when you need it).</p>
+</section>
+
+<section id="update" class="step">
+  <h2>4. Updating prod (day-to-day)</h2>
+  <p>For any change — copy fix, bug fix, new feature:</p>
+<pre><button class="copy">copy</button><code># 1. Make sure your local main is up to date
+git checkout main
+git pull
+
+# 2. Branch off
+git checkout -b fix/short-description
+
+# 3. Edit files. Test locally:
+npm run dev                    # http://localhost:3000
+
+# 4. Commit and push the branch
+git add -A
+git commit -m "fix: what changed and why"
+git push -u origin fix/short-description</code></pre>
+  <p>Then on GitHub:</p>
+  <ol class="steps">
+    <li>The push prompts you to <strong>Open Pull Request</strong> — click it.</li>
+    <li>Vercel comments with a <strong>Preview URL</strong> (<code>https://&lt;branch&gt;-&lt;hash&gt;.vercel.app</code>) — click to test live.</li>
+    <li>When happy → <strong>Squash and merge</strong> → delete the branch.</li>
+    <li>Vercel auto-deploys <code>main</code> → prod updates in ~90 s.</li>
+  </ol>
+
+  <h3>Rolling back a bad deploy</h3>
+  <p>Vercel → project → <strong>Deployments</strong> → find the last good one → ⋯ menu → <strong>Promote to Production</strong>. Instant.</p>
+</section>
+
+<section id="daily" class="step">
+  <h2>5. Day-to-day cheat sheet</h2>
+  <p>The shortest path once you've done the above once:</p>
+<pre><button class="copy">copy</button><code>git checkout main &amp;&amp; git pull
+git checkout -b fix/short-thing
+# …edit…
+git add -A &amp;&amp; git commit -m "fix: short thing"
+git push -u origin fix/short-thing
+# open PR on github.com → check Preview URL → merge → done</code></pre>
+  <p>For a one-line fix you don't want to PR: yes, you can <code>git checkout main &amp;&amp; git commit &amp;&amp; git push</code> directly. Vercel will deploy. Just don't make it a habit on shared branches.</p>
+</section>
+
+<section id="troubleshoot" class="step">
+  <h2>6. Troubleshooting</h2>
+
+  <h3>Build fails: <code>Failed to type check</code></h3>
+  <p>A TypeScript error somewhere. Reproduce locally:</p>
+<pre><button class="copy">copy</button><code>npx tsc --noEmit</code></pre>
+  <p>Fix the listed files, push, Vercel rebuilds automatically.</p>
+
+  <h3>Build fails: <code>Module not found</code></h3>
+  <p>You forgot to run <code>npm install</code> after pulling, OR a dependency was added without committing <code>package-lock.json</code>. Run <code>npm install</code> locally, commit any lockfile change, push.</p>
+
+  <h3><code>/conflict-checker</code> returns empty matches</h3>
+  <p>The database is empty or stale. Run <code>npm run ingest</code> from your laptop (with the prod <code>DATABASE_URL</code> in your local <code>.env</code>).</p>
+
+  <h3><code>/conflict-checker</code> returns "checker error"</h3>
+  <p>Check Vercel → project → <strong>Logs</strong> → look at recent invocations of <code>/api/check</code>. Usual culprits:</p>
+  <ul>
+    <li><code>DATABASE_URL</code> missing or wrong → fix in Vercel env vars and redeploy.</li>
+    <li><code>GROQ_API_KEY</code> invalid → regenerate at <a href="https://console.groq.com/keys">console.groq.com/keys</a>.</li>
+    <li>The local embedder timed out on cold start → expected first time after a deploy; the second request is fast.</li>
+  </ul>
+
+  <h3><code>/search-console</code> says "Connect Google" forever</h3>
+  <p>The redirect URI in Google Cloud Console doesn't include your Vercel URL. In Google Cloud → <strong>Credentials → your OAuth client → Authorized redirect URIs</strong>, add <code>https://edstellar-conflict-checker-knowledg.vercel.app/api/gsc/callback</code>, save, retry.</p>
+
+  <h3>Cron job didn't run</h3>
+  <p>Vercel → project → <strong>Cron Jobs</strong> tab shows scheduled runs + invocation logs. If you see <code>401 Unauthorized</code>, your <code>CRON_SECRET</code> was changed but the cron job's stored secret wasn't — redeploy and Vercel re-syncs.</p>
+
+  <h3>The function timed out</h3>
+  <p><code>maxDuration</code> is already maxed for our crons (300 s for ingest, 120 s for GSC snapshot). If <code>/api/cron/reingest</code> still times out it means too many URLs changed since the last run — re-seed locally with <code>npm run ingest -- --force</code> to catch up.</p>
+</section>
+
+<section id="security" class="step">
+  <h2>7. Security hygiene</h2>
+  <ul>
+    <li><strong>Rotate secrets quarterly</strong> or any time one might have leaked (Slack DM, screen-share, accidental commit).</li>
+    <li><strong>If a secret leaks</strong>: in Vercel → <strong>Settings → Environment Variables</strong>, update the value, then redeploy (Deployments tab → ⋯ → Redeploy). Rotate at the source — Neon → Reset password, Groq → revoke key &amp; make new one, Google → regenerate client secret.</li>
+    <li><strong>Never commit <code>.env</code></strong> — <code>.gitignore</code> blocks it; <code>git status</code> is the safety net.</li>
+    <li><strong>GitHub secret scanning</strong> is on by default. If you push a secret by accident, GitHub will email you and revoke certain known-format keys (Groq, OpenAI, Anthropic do this). Still rotate immediately.</li>
+  </ul>
+</section>
+
+<section id="ui" class="step">
+  <h2>8. Useful Vercel + GitHub UI corners</h2>
+  <table>
+    <thead><tr><th>What you want</th><th>Where to click</th></tr></thead>
+    <tbody>
+      <tr><td>See the latest deploy's logs</td><td>Vercel → project → <strong>Deployments</strong> → click the top one → <strong>Logs</strong></td></tr>
+      <tr><td>See runtime function errors</td><td>Vercel → project → <strong>Logs</strong> (live tail)</td></tr>
+      <tr><td>Re-trigger a build without code change</td><td>Vercel → project → <strong>Deployments</strong> → ⋯ on latest → <strong>Redeploy</strong></td></tr>
+      <tr><td>Change an env var</td><td>Vercel → project → <strong>Settings → Environment Variables</strong> → edit → <strong>Redeploy</strong> to pick it up</td></tr>
+      <tr><td>Run a cron manually now</td><td>Vercel → project → <strong>Cron Jobs</strong> tab → ⋯ on the row → <strong>Run now</strong></td></tr>
+      <tr><td>See who pushed what</td><td>GitHub → repo → <strong>Commits</strong> tab</td></tr>
+      <tr><td>Find a file fast in GitHub</td><td>Press <kbd>t</kbd> while on the repo page</td></tr>
+      <tr><td>See PR comments inline</td><td>GitHub → PR → <strong>Files changed</strong> tab</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="help" class="step">
+  <h2>9. When to ask for help</h2>
+  <ul>
+    <li>Build failed and the log message doesn't make obvious sense → screenshot the error + paste into a chat.</li>
+    <li>A feature works locally but breaks in prod → almost always an env var is missing in Vercel. Check <strong>Settings → Environment Variables</strong>.</li>
+    <li>A scheduled cron silently stopped → check Vercel <strong>Cron Jobs</strong> tab + the function's recent logs.</li>
+    <li>You're about to do <code>git push --force</code> to <code>main</code> → don't. Ask.</li>
+  </ul>
+</section>
+
+<section class="step">
+  <h2>Bookmark these four URLs</h2>
+  <ul>
+    <li>Repo: <a href="https://github.com/Layruss98266/Edstellar-Conflict-Checker-KnowledgeBase">github.com/Layruss98266/Edstellar-Conflict-Checker-KnowledgeBase</a></li>
+    <li>Vercel project: <code>https://vercel.com/&lt;your-team&gt;/edstellar-conflict-checker-knowledg</code></li>
+    <li>Neon project: <a href="https://console.neon.tech">console.neon.tech</a></li>
+    <li>Production app: <code>https://edstellar-conflict-checker-knowledg.vercel.app</code></li>
+  </ul>
+</section>
+
+<footer>
+  Companion to <code>VERCEL_GITHUB_GUIDE.md</code>. Last updated alongside the markdown source — if the two ever drift, the markdown is authoritative.
+</footer>
+
+</div>
+
+<script>
+  // Click-to-copy on every <pre><button class="copy">copy</button>...</pre>
+  document.querySelectorAll('pre .copy').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const pre = btn.parentElement;
+      const code = pre.querySelector('code');
+      if (!code) return;
+      navigator.clipboard.writeText(code.innerText).then(() => {
+        btn.classList.add('ok');
+        const orig = btn.textContent;
+        btn.textContent = 'copied';
+        setTimeout(() => { btn.textContent = orig; btn.classList.remove('ok'); }, 1500);
+      });
+    });
+  });
+</script>
+
+</body>
+</html>
