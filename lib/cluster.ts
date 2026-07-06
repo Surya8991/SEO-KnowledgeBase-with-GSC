@@ -8,7 +8,7 @@
  * Pure + deterministic (union-find with path compression). Unit-tested.
  */
 
-import { jaccard, tokenize, slugOverlap } from "@/lib/signals";
+import { jaccard, tokenize } from "@/lib/signals";
 import { THRESHOLDS, type Thresholds } from "@/lib/thresholds";
 
 /** A single similarity edge between two node ids (e.g. page URLs). */
@@ -46,51 +46,100 @@ function supportTokens(text: string | null | undefined): string[] {
 }
 
 /**
- * Multi-signal edge evidence (Stage 6 precision rules, PROJECTLOG 15G + 15H —
- * measured against the live corpus).
+ * Corpus-generic words that appear in almost every page's slug/title and so
+ * carry NO topic signal. Without stripping these, "adobe-illustrator-training"
+ * and "ai-for-ceos-training" anchor on the shared "training", and transitive
+ * union-find chains the whole catalogue into one mega-cluster. Anchoring must
+ * rest on DISTINCTIVE subject tokens (adobe/illustrator, big/data), so these
+ * are removed before the topic-anchor Jaccard. Env-extend via
+ * CONFLICT_TOPIC_STOPWORDS (comma-separated).
+ */
+const TOPIC_STOPWORDS = new Set<string>([
+  "training", "course", "workshop", "certification", "certificate", "program",
+  "programme", "masterclass", "bootcamp", "tutorial", "class", "classes", "lesson",
+  "corporate", "enterprise", "online", "free", "professional", "instructor", "led",
+  "for", "and", "the", "of", "in", "to", "with", "your", "our", "a", "an", "on", "at",
+  "best", "top", "list", "guide", "company", "companie", "service", "example",
+  "tip", "idea", "activitie", "activity", "game", "exercise", "employee", "team",
+  "how", "what", "why", "when", "where", "vs", "using", "use",
+  ...(process.env.CONFLICT_TOPIC_STOPWORDS?.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) ?? []),
+]);
+
+/** Distinctive (stopword-filtered) subject tokens used for topic anchoring. */
+function anchorTokens(text: string | null | undefined): string[] {
+  return supportTokens(text).filter((t) => t.length > 2 && !TOPIC_STOPWORDS.has(t));
+}
+
+/**
+ * Plural-normalized DISTINCTIVE tokens of the FINAL slug segment only — the
+ * actual subject ("big-data-training" → {big,data}), not the shared path prefix
+ * ("category"/"course") nor generic words ("training"). Using the whole path or
+ * generic tokens lets unrelated same-type pages anchor on common words, which
+ * is exactly the false-cluster bug this rewrite fixes.
+ */
+function lastSlugTokens(url: string | null | undefined): string[] {
+  if (!url) return [];
+  let path = url;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    /* not an absolute URL — treat the raw string as a path */
+  }
+  const seg = path.split("/").filter(Boolean).pop() ?? "";
+  return anchorTokens(seg.replace(/[-_]+/g, " ").replace(/\.[a-z0-9]+$/i, ""));
+}
+
+
+/**
+ * Topic-first edge evidence (rewritten — the tool groups pages about the SAME
+ * TOPIC, regardless of page type).
  *
- * An edge must NEVER rest on one signal:
- *  - Body cosine alone is not enough below the self-sufficient bar — course &
- *    static template boilerplate inflates it (/enquiry-form ↔ /contact-us
- *    measured 88% body, zero lexical overlap).
- *  - Same title/URL alone is not enough — the type-aware body floor always
- *    applies.
+ * Why the rewrite: the previous logic gated on SAME content-type + body cosine.
+ * On the live corpus that (a) blocked genuinely-related cross-type pairs — the
+ * `/category/big-data-training` listing and the `/blog/big-data-training-companies`
+ * article never grouped — while (b) lumping 40 UNRELATED same-type pages together,
+ * because category/course template boilerplate pushes body cosine past the
+ * "self-sufficient" bar with zero topic overlap.
  *
- * Rules:
- *  1. Cross-type pairs never group (bleed → Catalog Conflicts page).
- *  2. Body ≥ type-aware floor: course↔course needs groupSimCourse, or
- *     groupSimCourseTitle + title Jaccard ≥ groupTitleJaccardCourse
- *     (Express.js vs Node.js: body 0.74 / title 0.5 → never groups);
- *     other same-type pairs need groupSimilarity.
- *  3. Corroboration: ≥1 of title/H1/description/slug at plural-normalized
- *     Jaccard ≥ groupSupportJaccard — unless body ≥ groupBodySelfSufficient
- *     (near-verbatim duplicate).
+ * The subject of a page lives in its SLUG / TITLE / H1 tokens
+ * ("big-data-training"), which are template-independent. Body cosine only tells
+ * you two pages read similarly — which, for templated pages, is noise. So:
+ *
+ *  1. TOPIC ANCHOR (required): slug OR title OR H1 plural-normalized Jaccard
+ *     ≥ groupTopicAnchor. This is what "same topic" means. Description is
+ *     corroboration only (boilerplate CTAs), never an anchor.
+ *  2. BODY RELATEDNESS (required): body cosine ≥ groupBodyFloor — guards
+ *     against a coincidental token match between genuinely different pages.
+ *     Deliberately low so a category listing and a blog on the same topic
+ *     (different formats → moderate cosine) still group.
+ *  3. Content TYPE does NOT gate — cross-type same-topic pairs are exactly what
+ *     we want to surface. Template-heavy bodies can no longer group different
+ *     topics because the topic anchor is mandatory.
  */
 export function evaluatePair(p: CandidatePair, t: Thresholds = THRESHOLDS): PairEvidence {
-  const none: PairEvidence = { group: false, support: [] };
-  if (!p.aType || p.aType !== p.bType) return none;
-
-  // Lexical corroboration signals (computed once; also drive UI evidence tags).
+  // Evidence tags for the UI use the full token sets (any overlap counts).
   const support: EvidenceSignal[] = [];
   if (jaccard(supportTokens(p.aTitle), supportTokens(p.bTitle)) >= t.groupSupportJaccard) support.push("title");
   if (jaccard(supportTokens(p.aH1), supportTokens(p.bH1)) >= t.groupSupportJaccard) support.push("h1");
   if (jaccard(supportTokens(p.aDescription), supportTokens(p.bDescription)) >= t.groupSupportJaccard) support.push("description");
-  if (slugOverlap(p.aUrl, p.bUrl) >= t.groupSupportJaccard) support.push("url");
+  const slugJ = jaccard(lastSlugTokens(p.aUrl), lastSlugTokens(p.bUrl));
+  if (slugJ >= t.groupSupportJaccard) support.push("url");
 
-  // Type-aware body floor.
-  let bodyOk: boolean;
-  if (p.aType === "course") {
-    bodyOk =
-      p.sim >= t.groupSimCourse ||
-      (p.sim >= t.groupSimCourseTitle &&
-        jaccard(tokenize(p.aTitle), tokenize(p.bTitle)) >= t.groupTitleJaccardCourse);
-  } else {
-    bodyOk = p.sim >= t.groupSimilarity;
-  }
-  if (!bodyOk) return { group: false, support };
+  // 1. Topic anchor — a SUBJECT-bearing signal (slug/title/H1) must strongly
+  //    overlap on its DISTINCTIVE (stopword-filtered) tokens, using token-SET
+  //    Jaccard. A single shared generic word ("training") scores low and never
+  //    anchors. Description is not subject-bearing enough to anchor on its own.
+  const titleAnchorJ = jaccard(anchorTokens(p.aTitle), anchorTokens(p.bTitle));
+  const h1AnchorJ = jaccard(anchorTokens(p.aH1), anchorTokens(p.bH1));
+  const hasTopicAnchor =
+    slugJ >= t.groupTopicAnchor ||
+    titleAnchorJ >= t.groupTopicAnchor ||
+    h1AnchorJ >= t.groupTopicAnchor;
 
-  // Corroboration: lexical support, or near-verbatim body.
-  const group = p.sim >= t.groupBodySelfSufficient || support.length >= 1;
+  // 2. Body relatedness floor (guards coincidental token matches).
+  const bodyOk = p.sim >= t.groupBodyFloor;
+
+  const group = hasTopicAnchor && bodyOk;
   return { group, support: group ? ["body", ...support] : support };
 }
 

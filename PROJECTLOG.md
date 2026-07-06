@@ -11,7 +11,7 @@
 > and how the system fits together. Update this file with every meaningful
 > change.
 
-**Last updated:** 2026-07-06 (Session 11 — full project audit + security fixes shipped: C1/H1–H6/H8/H9)
+**Last updated:** 2026-07-06 (Session 12 — Content Clusters topic-first logic rewrite; Group 4 shipped w/ known clusters-page render bug)
 **Repo:** https://github.com/Surya8991/SEO-KnowledgeBase-with-GSC
 
 ---
@@ -1694,3 +1694,76 @@ both deferred with rationale in §16B.
 - **"Rate-limit as auth" only holds if the limiter can't be bypassed.** H3 (spoofable XFF) silently voided the H4/outcome/owner protection and every `gateLlmEndpoint` fallback. Fixing the limiter was higher-leverage than any single endpoint patch — one root cause under many findings.
 - **A dead quality gate hides for a long time.** `next lint` had been erroring out since the Next 16 bump with nobody noticing; the gate reported "no lint errors" by never running. Restoring it surfaced 26 real (if minor) issues. Verify gates actually execute, not just exit 0.
 - **"Finish everything" still means deferring what can't be verified.** H7 (embedding-lib swap) and M3 (socket-level IP pinning) were the two items whose *correct* fix can't be proven without a live model download / a Vercel TLS test. Shipping them blind would trade a documented, mitigated risk for an unverified regression. Deferring with written rationale is the honest completion, not a gap.
+
+---
+
+## 17. Session 12 — Content Clusters logic rewrite + Group 4 status (2026-07-06)
+
+Ported Group 4 (Content Clusters + live multi-signal wiring) from the upstream
+conflict-automation work, then **rewrote the cluster grouping logic** after live
+testing showed it grouped the wrong things.
+
+### 17A. The bug in the original grouping logic
+`lib/cluster.ts#evaluatePair` gated on **same content-type + body-embedding cosine**:
+- Rule "cross-type pairs never group" **blocked** genuinely related pairs — e.g.
+  `/category/big-data-training` (category) and `/blog/big-data-training-companies`
+  (blog) could never group despite being the same topic.
+- The `groupBodySelfSufficient` bypass let template boilerplate group **different
+  topics**: 40 unrelated `category` pages (big-data, python, java, …) formed one
+  cluster because category template pushes body cosine past ~0.93 with zero topic
+  overlap. Grouping was measuring **template, not topic**.
+
+### 17B. The rewrite — topic-first grouping
+Grouping now means **same subject**, regardless of page type:
+1. **Topic anchor (required):** the SUBJECT-bearing signals — final slug segment,
+   title, H1 — must overlap at token-SET Jaccard ≥ `groupTopicAnchor` (0.6), on
+   **distinctive** tokens only. A `TOPIC_STOPWORDS` set strips corpus-generic
+   words ("training", "course", "for", "companies", "activities", …) so pages
+   don't anchor on words that appear in every slug. Uses the final slug segment
+   only (not `/category/`, `/course/` prefixes).
+2. **Body relatedness floor (required):** body cosine ≥ `groupBodyFloor` (0.55) —
+   low enough that a category listing and a blog on the same topic (different
+   formats → moderate cosine) still group.
+3. **No content-type gate** — cross-type same-topic pairs are exactly the point.
+4. **Candidate top-k raised** to `groupTopK` 25 so a moderate-cosine cross-type
+   neighbour isn't crowded out of the ANN candidate set by template-similar
+   same-type pages.
+
+All thresholds env-overridable (`CONFLICT_GROUP_TOPIC_ANCHOR`,
+`CONFLICT_GROUP_BODY_FLOOR`, `CONFLICT_GROUP_TOPK`, `CONFLICT_TOPIC_STOPWORDS`).
+
+### 17C. Result (verified live against the 2,458-page production corpus, read-only)
+- The "40 different-topic category pages" and the 2,208-member mega-cluster are
+  **gone**. Cluster sizes are now sane (largest ~55, median 2).
+- Topic clusters are **coherent**: e.g. a "big data / data analytics" cluster of
+  12 (the big-data blog + big-data-analytics courses + data-analytics category +
+  data-visualization courses); a "chief-*-officer roles" cluster; a
+  "soft-skills-training-for-*-teams" cluster.
+- `lib/cluster.test.ts` rewritten (14 tests) to lock the new behaviour: cross-type
+  same-topic groups; same-type different-topic does NOT; generic shared word
+  ("training") never anchors; template body alone never groups. Suite: 115 green.
+
+### 17D. Known issues — for the follow-up (NOT fixed this session)
+1. **Clusters PAGE client render bug.** `/api/groups` works perfectly, but
+   `app/(dashboard)/clusters/page.tsx` never renders its cards — its client
+   effect never fires and the route stays on the `loading.tsx` skeleton (`main`
+   renders empty). Reproduced in **both dev and a production build**; a
+   pre-existing page (`/catalog-conflicts`) hydrates fine on the same server, so
+   it is specific to this page. No console/network/build error surfaced through
+   the preview harness — needs a local browser-devtools session to pin the throw.
+   **The clusters feature is therefore API-verified but not usable in the UI yet.**
+2. **Connected-components can still chain** a few multi-topic listicles
+   ("*-roles-responsibilities", "skills-in-demand-in-*") into broader-than-ideal
+   clusters. The tighter fix is to cluster by distinctive-token **signature**
+   (TF-IDF-weighted) instead of union-find over pairwise edges — a model change,
+   deferred.
+3. **Candidate top-k bias:** a cross-type pair whose cosine ranks below the
+   top-25 of a template-dense neighbourhood can still be missed (the big-data
+   *category* page itself didn't join, though the big-data *blog* + courses did).
+   A hybrid candidate query (ANN + shared-slug-token join) would close this.
+
+### 17E. Also from Group 4 (shipped earlier this session, PRs #2/#4 merged to main)
+Scoring primitives, CSV export/import, `detect-redirects`, and the live
+per-check signal wiring (`conflict.ts` + `search.ts` + checker-page strip). The
+conflict-checker page and the scoring API are verified; the clusters page has the
+render bug above.
