@@ -4,6 +4,7 @@ import { getChat } from "@/lib/ai";
 import { fetchAndExtract } from "@/lib/extract";
 import { gateLlmEndpoint } from "@/lib/api-gate";
 import { SsrfBlockedError } from "@/lib/ssrf-guard";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,11 +50,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ inputType: "topic", ...result });
   } catch (e) {
     if (e instanceof SsrfBlockedError) {
-      return NextResponse.json({ error: e.message }, { status: 400 });
+      return errorResponse("/api/summarize", e, {
+        status: 400,
+        publicMessage: "The provided URL is not allowed.",
+      });
     }
-    return NextResponse.json(
-      { error: (e as Error).message || "Summarize failed." },
-      { status: 500 },
-    );
+    return errorResponse("/api/summarize", e, {
+      status: 500,
+      publicMessage: "Summarize failed.",
+    });
   }
 }

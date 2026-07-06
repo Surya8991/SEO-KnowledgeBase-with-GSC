@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import type { NextRequest } from "next/server";
+import { log } from "@/lib/logger";
 
 /**
  * Postgres-backed sliding-window rate limiter — fits the existing Neon-only
@@ -142,7 +143,7 @@ export async function consume(
       return { ok: true, remaining: opts.max, resetIn: opts.windowSec };
     }
     // Prod DB hiccup → in-memory fallback (per-instance, but bounded).
-    console.warn("[rate-limit] DB failed, using in-memory bucket:", (err as Error).message);
+    log.warn("rate-limit: DB failed, using in-memory bucket", { error: (err as Error).message });
     return inMemoryConsume(ip, route, opts);
   }
 }

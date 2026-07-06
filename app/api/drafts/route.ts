@@ -8,6 +8,7 @@ import { clientIp } from "@/lib/rate-limit";
 import { getEmbedder } from "@/lib/ai";
 import { resolveDraft } from "@/lib/drafts/runtime";
 import { secureEquals } from "@/lib/secure-compare";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -143,10 +144,10 @@ export async function POST(request: NextRequest) {
       tokensOut: resolved.tokensOut ?? null,
     });
   } catch (e) {
-    return NextResponse.json(
-      { error: (e as Error).message || "Draft generation failed." },
-      { status: 500 },
-    );
+    return errorResponse("/api/drafts", e, {
+      status: 500,
+      publicMessage: "Draft generation failed.",
+    });
   }
 }
 
@@ -191,10 +192,10 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (e) {
-    return NextResponse.json(
-      { error: (e as Error).message || "Failed to list drafts." },
-      { status: 500 },
-    );
+    return errorResponse("/api/drafts", e, {
+      status: 500,
+      publicMessage: "Failed to list drafts.",
+    });
   }
 }
 

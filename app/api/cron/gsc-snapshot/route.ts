@@ -4,6 +4,7 @@ import { google } from "googleapis";
 import { getAuthorizedClient, resolveSiteUrl } from "@/lib/gsc";
 import { log } from "@/lib/logger";
 import { requireCronAuth } from "@/lib/cron-auth";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -163,6 +164,9 @@ export async function GET(request: NextRequest) {
     });
   } catch (e) {
     log.error("gsc snapshot failed", { error: (e as Error).message });
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return errorResponse("/api/cron/gsc-snapshot", e, {
+      status: 500,
+      publicMessage: "GSC snapshot failed.",
+    });
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pageCannibalization } from "@/lib/gsc-insights";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,9 +27,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url, range, groups });
   } catch (e) {
     // GSC may be unconnected — return empty groups so the UI just hides the banner.
-    return NextResponse.json(
-      { groups: [], error: (e as Error).message },
-      { status: 200 },
-    );
+    return errorResponse("/api/check/cannibalization", e, {
+      status: 200,
+      publicMessage: "Cannibalization data unavailable.",
+      extra: { groups: [] },
+    });
   }
 }

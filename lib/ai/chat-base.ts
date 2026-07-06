@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { log } from "@/lib/logger";
+import { assertLlmEnabled } from "./kill-switch";
 import type {
   ChatProvider,
   ConflictMatchInput,
@@ -102,9 +103,7 @@ export abstract class BaseChatProvider implements ChatProvider {
    * call complete() go through this wrapper, so a single env var stops spend.
    */
   private async safeComplete(system: string, user: string): Promise<string> {
-    if (process.env.LLM_KILL_SWITCH === "1") {
-      throw new Error("LLM_KILL_SWITCH is active — all AI calls are disabled.");
-    }
+    assertLlmEnabled("all AI calls");
     return this.complete(system, user);
   }
 

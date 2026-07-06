@@ -4,6 +4,7 @@ import * as cheerio from "cheerio";
 import { isJunkUrl } from "@/lib/sitemap";
 import { safeFetch } from "@/lib/safe-fetch";
 import { gateLlmEndpoint } from "@/lib/api-gate";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -108,6 +109,9 @@ export async function GET(request: NextRequest) {
       checkedAt: new Date().toISOString(),
     });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return errorResponse("/api/sitemap-drift", e, {
+      status: 500,
+      publicMessage: "Request failed.",
+    });
   }
 }

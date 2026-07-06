@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db, neonRows } from "@/lib/db";
 import { indexCoverage } from "@/lib/gsc-insights";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,6 +31,9 @@ export async function POST(request: NextRequest) {
     for (const r of results) buckets[r.verdict] = (buckets[r.verdict] ?? 0) + 1;
     return NextResponse.json({ sample: urls.length, buckets, results });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return errorResponse("/api/gsc/index-coverage", e, {
+      status: 500,
+      publicMessage: "Request failed.",
+    });
   }
 }

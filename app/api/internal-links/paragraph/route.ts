@@ -4,6 +4,7 @@ import { getEmbedder } from "@/lib/ai";
 import { fetchAndExtract } from "@/lib/extract";
 import { vectorSearchPages } from "@/lib/search";
 import { clientIp, consume, denied } from "@/lib/rate-limit";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -114,6 +115,9 @@ export async function POST(request: NextRequest) {
       suggestions,
     });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return errorResponse("/api/internal-links/paragraph", e, {
+      status: 500,
+      publicMessage: "Request failed.",
+    });
   }
 }

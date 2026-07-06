@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pageStats, pageStatsBatch } from "@/lib/gsc-page-stats";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +23,9 @@ export async function POST(request: NextRequest) {
     if (!url) return NextResponse.json({ error: "Missing 'url' or 'urls'." }, { status: 400 });
     return NextResponse.json(await pageStats(url, topN));
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return errorResponse("/api/gsc/page-stats", e, {
+      status: 500,
+      publicMessage: "Request failed.",
+    });
   }
 }
