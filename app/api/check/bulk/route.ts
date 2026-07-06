@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { runConflictCheck } from "@/lib/conflict";
 import { clientIp, consume, denied } from "@/lib/rate-limit";
+import { secureEquals } from "@/lib/secure-compare";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
     const required = process.env.WEBHOOK_API_KEY;
     if (required) {
       const sent = request.headers.get("x-api-key");
-      if (sent !== required) {
+      if (!secureEquals(sent, required)) {
         return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
       }
     } else {

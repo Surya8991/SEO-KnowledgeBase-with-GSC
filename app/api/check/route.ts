@@ -3,6 +3,7 @@ import { z } from "zod";
 import { runConflictCheck } from "@/lib/conflict";
 import { clientIp, consume, denied } from "@/lib/rate-limit";
 import { auth, isAuthEnabled } from "@/auth";
+import { secureEquals } from "@/lib/secure-compare";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
     // so signed-in dashboard users are never locked out by their own webhook key.
     const required = process.env.WEBHOOK_API_KEY;
     const sentKey = required ? request.headers.get("x-api-key") : null;
-    const hasValidKey = !!(required && sentKey === required);
+    const hasValidKey = !!required && secureEquals(sentKey, required);
 
     let sessionEmail: string | undefined;
     if (!hasValidKey) {

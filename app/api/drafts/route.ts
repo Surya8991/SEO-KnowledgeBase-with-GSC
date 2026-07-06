@@ -7,6 +7,7 @@ import { auth, isAuthEnabled } from "@/auth";
 import { clientIp } from "@/lib/rate-limit";
 import { getEmbedder } from "@/lib/ai";
 import { resolveDraft } from "@/lib/drafts/runtime";
+import { secureEquals } from "@/lib/secure-compare";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,7 +40,7 @@ const CreateBody = z.object({
 function workerKeyOk(req: NextRequest): boolean {
   const required = process.env.WORKER_API_KEY;
   if (!required) return false;
-  return req.headers.get("x-worker-key") === required;
+  return secureEquals(req.headers.get("x-worker-key"), required);
 }
 
 async function requireSession(req: NextRequest): Promise<string | NextResponse> {

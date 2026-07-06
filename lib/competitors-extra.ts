@@ -3,7 +3,7 @@
  * existing Serper integration + corpus + competitor sitemap fetches.
  */
 import { KNOWN_COMPETITORS, isEdstellarDomain } from "@/lib/competitors";
-import { fetchAndExtract } from "@/lib/extract";
+import { safeFetch } from "@/lib/safe-fetch";
 
 interface SerpOrganic { title: string; link: string; snippet?: string; position?: number }
 interface SerpAiOverview {
@@ -181,9 +181,10 @@ export async function competitorFreshness(domain: string): Promise<FreshnessResu
   let chosen = "";
   for (const url of candidates) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+      // C1: user-supplied competitor domain — guard every hop against SSRF.
+      const { res } = await safeFetch(url, { timeoutMs: 15_000 });
       if (res.ok) { xml = await res.text(); chosen = url; break }
-    } catch { /* try next */ }
+    } catch { /* try next (SSRF-blocked or unreachable) */ }
   }
   if (!xml) throw new Error(`Could not fetch sitemap for ${domain}.`);
   // If it's a sitemap index, follow the first child.
@@ -191,7 +192,8 @@ export async function competitorFreshness(domain: string): Promise<FreshnessResu
     const first = xml.match(/<loc>([^<]+)<\/loc>/i)?.[1];
     if (first) {
       try {
-        const r2 = await fetch(first, { signal: AbortSignal.timeout(15_000) });
+        // C1: sitemap-index <loc> is attacker-controlled — re-guard it.
+        const { res: r2 } = await safeFetch(first, { timeoutMs: 15_000 });
         if (r2.ok) xml = await r2.text();
       } catch { /* fallthrough */ }
     }
@@ -276,8 +278,9 @@ export async function competitorFreshness(domain: string): Promise<FreshnessResu
  */
 async function fetchOnPageModified(url: string): Promise<string | null> {
   try {
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(10_000),
+    // C1: sampled page URL comes from the fetched sitemap — guard it too.
+    const { res } = await safeFetch(url, {
+      timeoutMs: 10_000,
       headers: { accept: "text/html" },
     });
     if (!res.ok) return null;
