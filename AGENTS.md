@@ -65,9 +65,10 @@ New `/api/*` routes that should be cron-callable must be added to `proxy.ts PUBL
 ## Emergency run-book shortcuts
 - **LLM cost runaway** → set `LLM_KILL_SWITCH=1` env var + redeploy. Disables all AI calls instantly without a code push.
 - **DB unreachable** → check Neon console → wake endpoint or rotate `DATABASE_URL` to read-replica.
-- **Cron stuck / partial corpus** → manually `POST /api/cron/reingest`. No resume cursor exists yet — workaround: check `SELECT max(ingested_at) FROM pages` to find the cutoff.
+- **Cron stuck / partial corpus** → manually hit `/api/cron/reingest` (Bearer `CRON_SECRET`). It is now resumable/time-boxed: it prefilters to URLs that are missing or whose sitemap `lastmod` changed, stops ~30s before the 300s ceiling, and returns `{done, skipped, failed, remaining, stopped}`. `stopped:true`/`remaining>0` means re-run (or wait for the next weekly run) to drain the tail.
+- **Link-health audit** → `/api/cron/audit-links` is **on-demand only** (Bearer `CRON_SECRET`) or `npm run audit:links`. It was dropped from the cron schedule to stay under the Vercel Hobby 2-cron cap (see below).
 
 ## What NOT to do
 - Do not force-push `main`. No exceptions.
 - Do not run destructive migrations without a DB backup — migrations are forward-only with no transactional wrapper.
-- Do not add routes to `/api/cron/*` without adding them to `vercel.json` crons AND noting the Vercel Hobby 2-cron cap in README.
+- Do not add routes to `/api/cron/*` without checking the **Vercel Hobby 2-cron cap**. `vercel.json` currently schedules exactly 2 (`reingest`, `gsc-snapshot`); a 3rd silently won't schedule on Hobby. Adding one means either dropping/merging another or moving to Pro. `audit-links` is intentionally on-demand for this reason.
