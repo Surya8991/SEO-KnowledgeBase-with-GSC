@@ -55,6 +55,7 @@ export default function HistoryPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset/sync on dependency change
   useEffect(() => { setPage(1); }, [filter, scoreBand]);
 
   async function loadList() {
@@ -75,6 +76,7 @@ export default function HistoryPage() {
     setMatches(json.matches ?? []);
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset/sync on dependency change
   useEffect(() => { loadList(); }, []);
 
   const filteredList = list

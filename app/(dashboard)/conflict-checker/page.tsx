@@ -448,7 +448,7 @@ export default function ConflictCheckerPage() {
                       {cannibals.slice(0, 5).map((g) => (
                         <li key={g.query} className="rounded-md border border-amber-200 bg-white/70 p-2.5">
                           <div className="flex flex-wrap items-baseline justify-between gap-2">
-                            <span className="font-mono text-xs font-medium text-slate-900">"{g.query}"</span>
+                            <span className="font-mono text-xs font-medium text-slate-900">&quot;{g.query}&quot;</span>
                             <span className="text-[11px] text-slate-500 tabular-nums">
                               {g.totalImpressions.toLocaleString()} impr · {g.totalClicks} clk · {g.pages.length} pages
                             </span>
@@ -487,7 +487,7 @@ export default function ConflictCheckerPage() {
               <Card>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold text-slate-900">
-                    Competitor SERP for "{enrich.serp.topic}"
+                    Competitor SERP for &quot;{enrich.serp.topic}&quot;
                   </h3>
                   {enrich.serp.edstellarRank
                     ? <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">Edstellar #{enrich.serp.edstellarRank} on Google</span>
@@ -723,7 +723,7 @@ export default function ConflictCheckerPage() {
                 </div>
               )}
               {suggestions && !suggestions?.suggestions?.angles?.length && !suggestions?.error && (
-                <p className="mt-3 text-xs text-slate-500">No angles returned — the LLM response wasn't parseable. Try Re-run.</p>
+                <p className="mt-3 text-xs text-slate-500">No angles returned — the LLM response wasn&apos;t parseable. Try Re-run.</p>
               )}
               {/* PAA — questions Google considers related. Free signal from
                   the SERP, surfaced here so writers can answer them in-page

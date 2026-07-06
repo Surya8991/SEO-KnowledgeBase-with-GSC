@@ -11,7 +11,7 @@ async function main() {
   const sql = neon(process.env.DATABASE_URL!);
   const before = (await sql.query(
     "SELECT id, url, content_type, tags FROM pages WHERE content_type = 'home'",
-  )) as any[];
+  )) as { id: number; url: string; content_type: string; tags: string[] | null }[];
   console.log("Before:", before);
   if (!before.length) return console.log("No rows to migrate.");
 
@@ -27,7 +27,7 @@ async function main() {
            )
      WHERE content_type = 'home'
      RETURNING id, url, content_type, tags`,
-  )) as any[];
+  )) as { id: number; url: string; content_type: string; tags: string[] | null }[];
   console.log("After:", after);
 }
 

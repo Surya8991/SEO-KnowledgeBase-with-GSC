@@ -76,7 +76,7 @@ export default async function SignInPage({ searchParams }: PageProps) {
         </form>
 
         <p className="mt-6 text-center text-xs text-slate-400">
-          By signing in you agree to the team's internal-tool acceptable use policy.
+          By signing in you agree to the team&apos;s internal-tool acceptable use policy.
         </p>
       </div>
     </div>

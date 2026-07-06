@@ -29,6 +29,7 @@ export default function CatalogConflictsPage() {
       .then((d) => setRows(d.rows ?? []))
       .finally(() => setLoading(false));
   }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset/sync on dependency change
   useEffect(() => { setPage(1) }, [pairFilter, minSim]);
 
   const pairTypes = useMemo(() => Array.from(new Set(rows.map((r) => r.pair_type))).sort(), [rows]);

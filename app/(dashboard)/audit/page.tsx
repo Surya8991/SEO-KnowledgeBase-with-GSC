@@ -43,6 +43,7 @@ export default function AuditPage() {
     setLoading(false);
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps -- intentional: reset/sync on dependency change
   useEffect(() => { load(); setFlagFilter(""); }, [tab]);
 
   return (
@@ -86,6 +87,7 @@ export default function AuditPage() {
 function MetaTab({ rows, flagFilter, onFlagFilter }: { rows: any[]; flagFilter: string; onFlagFilter: (s: string) => void }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset/sync on dependency change
   useEffect(() => { setPage(1) }, [flagFilter]);
 
   const allFlags = Array.from(new Set(rows.flatMap((r) => r.flags ?? []))).sort();
@@ -172,7 +174,7 @@ function LinksTab({ rows, audited, breakdown }: { rows: any[]; audited: number; 
   const total = audited ?? 0;
   if (total === 0) return (
     <Card className="text-sm text-slate-600">
-      Link audit hasn't run yet. The weekly cron will populate this within 7 days, or ask an admin to trigger the audit manually.
+      Link audit hasn&apos;t run yet. The weekly cron will populate this within 7 days, or ask an admin to trigger the audit manually.
     </Card>
   );
 
@@ -315,6 +317,7 @@ function HealthTab({ rows }: { rows: any[] }) {
   // rows are sorted ascending (weakest first) regardless of the filter.
   const [minHealth, setMinHealth] = useState(0);
   const [band, setBand] = useState<Band>("all");
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset/sync on dependency change
   useEffect(() => { setPage(1) }, [minHealth, band]);
 
   // Severity-band counts across the full corpus (not the filtered view) so the
@@ -700,7 +703,7 @@ function ClustersTab({ rows, blogRows }: { rows: ClusterRow[]; blogRows: BlogClu
         <div className="space-y-4 border-t border-slate-200 pt-6">
           <Card className="bg-slate-50 text-xs text-slate-600">
             <strong>Blog clusters · how to read:</strong> grouped by the blog
-            corpus's own category taxonomy (separate from course categories).
+            corpus&apos;s own category taxonomy (separate from course categories).
             Sorted by total blogs descending. Stale ratio + avg position help
             spot categories that are over-served (lots of blogs, low traffic)
             or under-served (high impressions but few blogs).
