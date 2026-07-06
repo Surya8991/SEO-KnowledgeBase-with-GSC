@@ -1,6 +1,6 @@
 /** npx tsx --test lib/cluster.test.ts */
 import { test, assert } from "vitest";
-import { connectedComponents, shouldGroupPair, evaluatePair } from "./cluster";
+import { connectedComponents, shouldGroupPair, evaluatePair, type EvidenceSignal } from "./cluster";
 
 test("transitive edges form one component", () => {
   // A-B, B-C ⇒ {A,B,C} even though A-C was never a direct edge.
@@ -43,90 +43,91 @@ test("chained merge across many edges", () => {
   assert.deepEqual(groups[1], ["5", "6"]);
 });
 
-// ── shouldGroupPair (type-aware precision rules) ──────────────────────────
+// ── evaluatePair — topic-first grouping (rewritten) ───────────────────────
+// Grouping means SAME TOPIC (slug/title/H1 subject overlap), not same type or
+// high body cosine. Cross-type same-topic pairs group; same-type different-topic
+// pairs (template-inflated body) do not.
 
-test("cross-type pairs never group (bleed, not duplication)", () => {
-  assert.equal(shouldGroupPair({ aType: "category", bType: "course", aTitle: "x", bTitle: "x", sim: 0.99 }), false);
-  assert.equal(shouldGroupPair({ aType: null, bType: null, aTitle: "x", bTitle: "x", sim: 0.99 }), false);
+test("cross-type SAME topic groups (category listing + blog)", () => {
+  // The headline fix: /category/big-data-training + /blog/big-data-training-companies.
+  const r = evaluatePair({
+    aType: "category", bType: "blog",
+    aTitle: "Big Data Training", bTitle: "Top Big Data Training Companies",
+    aUrl: "https://x.com/category/big-data-training",
+    bUrl: "https://x.com/blog/big-data-training-companies",
+    sim: 0.7,
+  });
+  assert.equal(r.group, true);
+  assert.ok(r.support.includes("title"));
+  assert.ok(r.support.includes("url"));
 });
 
-test("distinct courses with template-inflated similarity do NOT group", () => {
-  // Express.js vs Node.js: different products, title Jaccard 0.5, body ~0.74-0.90.
-  assert.equal(shouldGroupPair({
-    aType: "course", bType: "course",
-    aTitle: "Express JS Training", bTitle: "Node JS Training",
-    sim: 0.90,
-  }), false);
+test("same-type DIFFERENT topics do NOT group despite template-inflated body", () => {
+  // Two category pages; boilerplate gives 94% body cosine, but the subjects
+  // differ (big data vs python) → no topic anchor → the old "40 category
+  // pages" false cluster no longer forms.
+  const r = evaluatePair({
+    aType: "category", bType: "category",
+    aTitle: "Big Data Training", bTitle: "Python Training",
+    aUrl: "https://x.com/category/big-data-training",
+    bUrl: "https://x.com/category/python-training",
+    sim: 0.94,
+  });
+  assert.equal(r.group, false);
 });
 
-test("true duplicate courses group at the hard bar", () => {
-  assert.equal(shouldGroupPair({
-    aType: "course", bType: "course",
-    aTitle: "Anything", bTitle: "Entirely Different",
-    sim: 0.95,
-  }), true);
-});
-
-test("re-listed course (same title) groups at the softer bar", () => {
-  assert.equal(shouldGroupPair({
-    aType: "course", bType: "course",
-    aTitle: "Leadership Skills Training", bTitle: "Leadership Skills Training",
-    sim: 0.89,
-  }), true);
-});
-
-test("blogs group at the editorial threshold WITH lexical corroboration", () => {
-  const base = {
-    aType: "blog", bType: "blog",
-    aTitle: "Top Big Data Training Companies", bTitle: "Top Corporate Training Companies",
-  };
-  assert.equal(shouldGroupPair({ ...base, sim: 0.86 }), true);
-  assert.equal(shouldGroupPair({ ...base, sim: 0.84 }), false); // below body floor
-});
-
-// ── evaluatePair (multi-signal evidence, 15H) ─────────────────────────────
-
-test("body similarity alone never groups below the self-sufficient bar", () => {
-  // /enquiry-form vs /contact-us: 88% template body, zero lexical overlap.
+test("high body cosine with zero subject overlap never groups (template noise)", () => {
+  // /enquiry-form vs /contact-us: 94% template body, no shared subject.
   const r = evaluatePair({
     aType: "static", bType: "static",
     aTitle: "Enquire Now", bTitle: "Contact Us",
     aH1: "Enquiry", bH1: "Reach Our Team",
-    aDescription: "Send an enquiry", bDescription: "Get in touch with the team",
     aUrl: "https://x.com/enquiry-form", bUrl: "https://x.com/contact-us",
-    sim: 0.88,
+    sim: 0.94,
   });
   assert.equal(r.group, false);
   assert.deepEqual(r.support, []);
 });
 
-test("near-verbatim body (≥ self-sufficient) groups without lexical support", () => {
+test("a single generic shared word is not a topic anchor", () => {
+  // "big data training" vs "python training" share only {training} (Jaccard
+  // 0.25 < anchor) → different topics even at high body cosine.
   const r = evaluatePair({
-    aType: "blog", bType: "blog",
-    aTitle: "Alpha", bTitle: "Omega",
-    sim: 0.94,
-  });
-  assert.equal(r.group, true);
-  assert.ok(r.support.includes("body"));
-});
-
-test("same title alone never groups — body floor always applies", () => {
-  const r = evaluatePair({
-    aType: "blog", bType: "blog",
-    aTitle: "Leadership Guide", bTitle: "Leadership Guide",
-    sim: 0.6, // well below the editorial floor
+    aType: "course", bType: "course",
+    aTitle: "Big Data Training", bTitle: "Python Training",
+    aUrl: "https://x.com/course/big-data-training", bUrl: "https://x.com/course/python-training",
+    sim: 0.9,
   });
   assert.equal(r.group, false);
 });
 
-test("plural normalization corroborates 'skill gaps' vs 'skills gap'", () => {
+test("topic match but unrelated body (below floor) does NOT group", () => {
   const r = evaluatePair({
     aType: "blog", bType: "blog",
-    aTitle: "How to Identify Skill Gaps", bTitle: "Common Skills Gap Examples",
-    sim: 0.85,
+    aTitle: "Leadership Skills Training", bTitle: "Leadership Skills Training",
+    sim: 0.4, // below groupBodyFloor
+  });
+  assert.equal(r.group, false);
+});
+
+test("plural normalization anchors 'skill gaps' vs 'skills gap'", () => {
+  const r = evaluatePair({
+    aType: "blog", bType: "blog",
+    aTitle: "Identify Skill Gaps at Work", bTitle: "Skills Gap Examples at Work",
+    sim: 0.7,
   });
   assert.equal(r.group, true);
   assert.ok(r.support.includes("title"));
+});
+
+test("shouldGroupPair mirrors evaluatePair.group", () => {
+  const p = {
+    aType: "category", bType: "blog",
+    aTitle: "Big Data Training", bTitle: "Big Data Training Companies",
+    aUrl: "https://x.com/category/big-data-training", bUrl: "https://x.com/blog/big-data-training-companies",
+    sim: 0.7,
+  };
+  assert.equal(shouldGroupPair(p), evaluatePair(p).group);
 });
 
 test("evidence lists every corroborating signal", () => {
@@ -139,5 +140,5 @@ test("evidence lists every corroborating signal", () => {
     sim: 0.9,
   });
   assert.equal(r.group, true);
-  for (const s of ["body", "title", "h1", "description", "url"]) assert.ok(r.support.includes(s as any), s);
+  for (const s of ["body", "title", "h1", "description", "url"]) assert.ok(r.support.includes(s as EvidenceSignal), s);
 });

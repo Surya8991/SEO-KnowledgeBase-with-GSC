@@ -64,6 +64,18 @@ export interface Thresholds {
    *  slug) at this plural-normalized Jaccard — body similarity alone is never
    *  enough below the self-sufficient bar. */
   groupSupportJaccard: number;
+  /** Corpus-grouping (topic-first rewrite): the SUBJECT-bearing signals
+   *  (slug / title / H1) must overlap at ≥ this plural-normalized Jaccard for a
+   *  pair to be the SAME TOPIC. This is the anchor — "big-data-training" ↔
+   *  "big-data-training-companies" share {big,data,training} (0.75) and group;
+   *  "big-data-training" ↔ "python-training" share only {training} (0.25) and
+   *  do NOT. Template body cosine can no longer group different topics. */
+  groupTopicAnchor: number;
+  /** Corpus-grouping: minimum body cosine for a topic-anchored pair to count as
+   *  genuinely related (not a coincidental token match). Deliberately lower
+   *  than groupSimilarity so a category listing and a blog on the SAME topic
+   *  (different formats → moderate body cosine) still group. */
+  groupBodyFloor: number;
   /** Corpus-grouping: body cosine at/above this is a near-verbatim duplicate
    *  and needs no lexical corroboration. */
   groupBodySelfSufficient: number;
@@ -85,8 +97,13 @@ export const THRESHOLDS: Thresholds = {
   groupSimCourseTitle:    envNum("CONFLICT_GROUP_SIM_COURSE_TITLE", 0.88),
   groupTitleJaccardCourse: envNum("CONFLICT_GROUP_TITLE_JACCARD_COURSE", 0.6),
   groupSupportJaccard:     envNum("CONFLICT_GROUP_SUPPORT_JACCARD", 0.3),
+  groupTopicAnchor:        envNum("CONFLICT_GROUP_TOPIC_ANCHOR", 0.6),
+  groupBodyFloor:          envNum("CONFLICT_GROUP_BODY_FLOOR", 0.55),
   groupBodySelfSufficient: envNum("CONFLICT_GROUP_BODY_SELF_SUFFICIENT", 0.93),
-  groupTopK:              envNum("CONFLICT_GROUP_TOPK", 5),
+  // Higher top-k so a moderate-cosine CROSS-TYPE neighbour (a blog on the same
+  // topic as a category listing) isn't crowded out of the candidate set by
+  // template-similar same-type pages.
+  groupTopK:              envNum("CONFLICT_GROUP_TOPK", 25),
   winner: {
     inbound:  envNum("CONFLICT_WINNER_INBOUND", 0.45),
     depth:    envNum("CONFLICT_WINNER_DEPTH", 0.3),
