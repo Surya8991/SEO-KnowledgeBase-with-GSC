@@ -56,7 +56,7 @@ async function main() {
           const existing = (await sql.query(
             "SELECT lastmod, embedding IS NOT NULL AS has_emb FROM pages WHERE url = $1",
             [entry.url],
-          )) as any[];
+          )) as { lastmod: string | null; has_emb: boolean }[];
           if (
             existing[0]?.has_emb &&
             entry.lastmod &&

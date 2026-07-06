@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { drafts } from "@/lib/db/schema";
 import { auth, isAuthEnabled } from "@/auth";
 import { clientIp } from "@/lib/rate-limit";
+import { secureEquals } from "@/lib/secure-compare";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,7 +28,7 @@ const PatchBody = z.object({
 function workerKeyOk(req: NextRequest): boolean {
   const required = process.env.WORKER_API_KEY;
   if (!required) return false;
-  return req.headers.get("x-worker-key") === required;
+  return secureEquals(req.headers.get("x-worker-key"), required);
 }
 
 async function sessionOk(req: NextRequest): Promise<boolean> {
@@ -56,10 +58,10 @@ export async function GET(
     if (!row) return NextResponse.json({ error: "Not found." }, { status: 404 });
     return NextResponse.json(row);
   } catch (e) {
-    return NextResponse.json(
-      { error: (e as Error).message || "Read failed." },
-      { status: 500 },
-    );
+    return errorResponse("/api/drafts/[id]", e, {
+      status: 500,
+      publicMessage: "Read failed.",
+    });
   }
 }
 
@@ -112,10 +114,10 @@ export async function PATCH(
     if (!row) return NextResponse.json({ error: "Not found." }, { status: 404 });
     return NextResponse.json({ id: row.id, status: row.status });
   } catch (e) {
-    return NextResponse.json(
-      { error: (e as Error).message || "Update failed." },
-      { status: 500 },
-    );
+    return errorResponse("/api/drafts/[id]", e, {
+      status: 500,
+      publicMessage: "Update failed.",
+    });
   }
 }
 

@@ -74,6 +74,7 @@ export default function HelpButton() {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLElement | null>(null);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset/sync on dependency change
   useEffect(() => { setOpen(false) }, [pathname]);
   useEffect(() => {
     if (!open) return;

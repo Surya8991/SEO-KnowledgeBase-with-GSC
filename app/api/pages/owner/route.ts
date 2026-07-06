@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { neon } from "@neondatabase/serverless";
-import { gateLlmEndpoint } from "@/lib/api-gate";
+import { gateWriteEndpoint } from "@/lib/api-gate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,8 +11,9 @@ export const dynamic = "force-dynamic";
  * Body: { url: string, ownerUrl: string | null }
  * Set or clear the editorial owner for a page (#25).
  *
- * Admin-only when WEBHOOK_API_KEY is set; otherwise open in dev. NextAuth
- * gating belongs here once #33 ships.
+ * Write endpoint: requires a webhook key or a signed-in session (audit H4);
+ * falls back to per-IP rate-limit only when neither auth mechanism is
+ * configured (dev/default).
  */
 const BodySchema = z.object({
   url: z.string().url(),
@@ -20,9 +21,9 @@ const BodySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  // H4: unconditional gate — rate-limit fallback when WEBHOOK_API_KEY is unset
-  // so unauthenticated callers can't update arbitrary page ownership records.
-  const gate = await gateLlmEndpoint(request, "pages-owner", { max: 60, windowSec: 60 });
+  // H4: writes owner_url (drives redirect-suggestion logic) — require webhook
+  // key or session when configured; rate-limit only in the fully-open config.
+  const gate = await gateWriteEndpoint(request, "pages-owner", { max: 60, windowSec: 60 });
   if (gate) return gate;
   try {
     const raw = await request.json().catch(() => ({}));

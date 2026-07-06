@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { lookup, pageStats, queryStats } from "@/lib/gsc-page-stats";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +27,9 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json(await lookup(input));
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return errorResponse("/api/gsc/lookup", e, {
+      status: 500,
+      publicMessage: "Request failed.",
+    });
   }
 }

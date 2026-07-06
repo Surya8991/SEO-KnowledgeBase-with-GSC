@@ -58,9 +58,11 @@ export default function BulkCheckPage() {
   const [showHistory, setShowHistory] = useState(false);
 
   // Load saved history on mount.
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset/sync on dependency change
   useEffect(() => { setHistory(loadHistory()); }, []);
 
   // Reset to page 1 whenever filters or new results change.
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset/sync on dependency change
   useEffect(() => { setPage(1) }, [verdictFilter, scoreMin, results.length]);
 
   function inputsFromText(s: string): string[] {

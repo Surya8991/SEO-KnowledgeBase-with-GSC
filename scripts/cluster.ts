@@ -143,7 +143,7 @@ async function main() {
       const ins = (await sql.query(
         `INSERT INTO clusters (label, size) VALUES ($1,$2) RETURNING id`,
         [label, buckets[c].length],
-      )) as any[];
+      )) as { id: number }[];
       const clusterId = Number(ins[0].id);
       const ids = buckets[c].map((i) => rows[i].id);
       if (ids.length) {

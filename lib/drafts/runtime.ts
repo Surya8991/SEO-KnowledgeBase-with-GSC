@@ -18,6 +18,8 @@
  */
 import Groq from "groq-sdk";
 import { getEmbedder } from "@/lib/ai";
+import { assertLlmEnabled } from "@/lib/ai/kill-switch";
+import { log } from "@/lib/logger";
 import { findNearestDraft, upsertDraft, type NearestDraft } from "@/lib/drafts/select";
 
 const CACHE_HIT_THRESHOLD = 0.85;
@@ -69,10 +71,9 @@ export async function resolveDraft(
     };
   }
 
-  // Cases 2 & 3 both need Groq. Honor LLM kill switch.
-  if (process.env.LLM_KILL_SWITCH === "1") {
-    throw new Error("LLM_KILL_SWITCH is active — Groq calls are disabled. Cache miss cannot be filled.");
-  }
+  // Cases 2 & 3 both need Groq. Honor the shared LLM kill switch (same
+  // contract as BaseChatProvider — audit M, Session 11).
+  assertLlmEnabled("Groq draft calls (cache miss cannot be filled)");
 
   const useAdapt = !!nearest && nearest.similarity >= ADAPT_THRESHOLD;
   const groqOutput = useAdapt
@@ -97,7 +98,7 @@ export async function resolveDraft(
       });
     } catch (e) {
       // Don't fail the request if the cache write fails — log and continue.
-      console.warn("[drafts/runtime] cache write failed:", (e as Error).message);
+      log.warn("drafts/runtime: cache write failed", { error: (e as Error).message });
     }
   }
 

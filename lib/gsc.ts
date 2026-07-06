@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import { neon } from "@neondatabase/serverless";
+import { encryptToken, decryptToken } from "@/lib/crypto-tokens";
 
 export const GSC_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 
@@ -38,8 +39,9 @@ export async function saveTokens(tokens: {
      VALUES ($1,$2,$3,$4,$5)`,
     [
       siteUrl,
-      tokens.access_token ?? null,
-      tokens.refresh_token ?? null,
+      // M2: encrypt tokens at rest (no-op when no key is configured).
+      encryptToken(tokens.access_token),
+      encryptToken(tokens.refresh_token),
       tokens.expiry_date ? new Date(tokens.expiry_date) : null,
       tokens.scope ?? GSC_SCOPE,
     ],
@@ -52,13 +54,14 @@ export async function getAuthorizedClient() {
   const rows = (await sql.query(
     `SELECT access_token, refresh_token, expiry FROM gsc_connections
      ORDER BY created_at DESC LIMIT 1`,
-  )) as any[];
+  )) as { access_token: string | null; refresh_token: string | null; expiry: string | Date | null }[];
   if (!rows.length) return null;
   const client = getOAuthClient();
   client.setCredentials({
-    access_token: rows[0].access_token,
-    refresh_token: rows[0].refresh_token,
-    expiry_date: rows[0].expiry ? new Date(rows[0].expiry).getTime() : undefined,
+    // M2: decrypt at read (legacy plaintext rows pass through unchanged).
+    access_token: decryptToken(rows[0]!.access_token) ?? undefined,
+    refresh_token: decryptToken(rows[0]!.refresh_token) ?? undefined,
+    expiry_date: rows[0]!.expiry ? new Date(rows[0]!.expiry).getTime() : undefined,
   });
   return client;
 }

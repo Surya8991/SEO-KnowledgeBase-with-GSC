@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { serpOverlap } from "@/lib/competitors-extra";
 import { getChat } from "@/lib/ai";
 import { parseJson } from "@/lib/ai/chat-base";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -109,6 +110,9 @@ export async function POST(request: NextRequest) {
       suggestions,
     });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return errorResponse("/api/suggestions/new-content", e, {
+      status: 500,
+      publicMessage: "Request failed.",
+    });
   }
 }

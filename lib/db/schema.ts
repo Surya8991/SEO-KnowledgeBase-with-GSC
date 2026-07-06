@@ -9,6 +9,7 @@ import {
   boolean,
   index,
   uniqueIndex,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 // Embedding dimension. Local model (bge-small-en-v1.5) = 384.
@@ -51,6 +52,12 @@ export const pages = pgTable(
     imagesNoAlt: integer("images_no_alt"),
     isStale: boolean("is_stale").default(false),
     staleReason: text("stale_reason"),
+    // Session 11 audit (schema drift): these exist in DB since
+    // drizzle/0002_audit.sql but were absent from the TS schema, so a Drizzle
+    // select of pages.* never surfaced them and raw SQL was the only access.
+    httpStatus: integer("http_status"),
+    lastAuditedAt: timestamp("last_audited_at"),
+    clusterId: integer("cluster_id"),
   },
   (t) => [
     uniqueIndex("pages_url_idx").on(t.url),
@@ -222,6 +229,48 @@ export const drafts = pgTable("drafts", {
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
 });
+
+/** Topic clusters (drizzle/0002_audit.sql). pages.cluster_id links in. */
+export const clusters = pgTable("clusters", {
+  id: serial("id").primaryKey(),
+  label: text("label"),
+  size: integer("size"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+/** Rolled-up daily GSC totals (drizzle/0002_audit.sql). */
+export const gscDailyTotals = pgTable(
+  "gsc_daily_totals",
+  {
+    id: serial("id").primaryKey(),
+    siteUrl: text("site_url"),
+    date: text("date"),
+    clicks: real("clicks"),
+    impressions: real("impressions"),
+    ctr: real("ctr"),
+    position: real("position"),
+    brandedClicks: real("branded_clicks"),
+    brandedImpressions: real("branded_impressions"),
+    fetchedAt: timestamp("fetched_at").defaultNow(),
+  },
+  (t) => [uniqueIndex("gsc_daily_totals_idx").on(t.siteUrl, t.date)],
+);
+
+/** Sliding-window rate-limit buckets (drizzle/0003_rate_limits.sql).
+ *  Accessed via raw neon() SQL in lib/rate-limit.ts; modelled here for parity. */
+export const rateLimits = pgTable(
+  "rate_limits",
+  {
+    ip: text("ip").notNull(),
+    route: text("route").notNull(),
+    count: integer("count").notNull().default(0),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.ip, t.route] }),
+    index("rate_limits_window_idx").on(t.windowStart),
+  ],
+);
 
 export type Page = typeof pages.$inferSelect;
 export type NewPage = typeof pages.$inferInsert;

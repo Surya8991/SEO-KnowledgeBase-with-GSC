@@ -13,6 +13,7 @@
 import "dotenv/config";
 import { neon } from "@neondatabase/serverless";
 import { isJunkUrl } from "@/lib/sitemap";
+import { assertProdWritesAllowed } from "@/lib/db/prod-guard";
 
 async function main() {
   const doDelete = process.argv.includes("--delete");
@@ -51,6 +52,9 @@ async function main() {
     console.log("\nNothing to delete.");
     return;
   }
+
+  // H5: block accidental deletes against the shared production DB.
+  assertProdWritesAllowed(`delete ${junk.length} junk page rows`);
 
   const ids = junk.map((r) => r.id);
   // Delete in chunks to avoid bind-param limits on big lists.

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { rowsOf } from "@/lib/db/exec";
+import { errorResponse } from "@/lib/api-error";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -85,9 +86,10 @@ export async function GET(request: NextRequest) {
       offset,
     });
   } catch (e) {
-    return NextResponse.json(
-      { error: (e as Error).message, rows: [], total: 0, byType: [], byCourseType: [], topCategories: [], page: 1, totalPages: 1 },
-      { status: 500 },
-    );
+    return errorResponse("/api/pages", e, {
+      status: 500,
+      publicMessage: "Request failed.",
+      extra: { rows: [], total: 0, byType: [], byCourseType: [], topCategories: [], page: 1, totalPages: 1 },
+    });
   }
 }

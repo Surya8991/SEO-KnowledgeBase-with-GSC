@@ -5,14 +5,18 @@
  */
 import "dotenv/config";
 import { neon } from "@neondatabase/serverless";
+import { assertProdWritesAllowed } from "@/lib/db/prod-guard";
 
 async function main() {
   const sql = neon(process.env.DATABASE_URL!);
   const before = (await sql.query(
     "SELECT id, url, content_type, tags FROM pages WHERE content_type = 'home'",
-  )) as any[];
+  )) as { id: number; url: string; content_type: string; tags: string[] | null }[];
   console.log("Before:", before);
   if (!before.length) return console.log("No rows to migrate.");
+
+  // H5: block accidental UPDATE against the shared production DB.
+  assertProdWritesAllowed("reclassify 'home' pages to 'static'");
 
   const after = (await sql.query(
     `UPDATE pages
@@ -23,7 +27,7 @@ async function main() {
            )
      WHERE content_type = 'home'
      RETURNING id, url, content_type, tags`,
-  )) as any[];
+  )) as { id: number; url: string; content_type: string; tags: string[] | null }[];
   console.log("After:", after);
 }
 
