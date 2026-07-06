@@ -90,6 +90,34 @@ export const TYPE_COLORS: Record<string, string> = {
   static:               "bg-slate-100 text-slate-600",
 };
 
+// Content-cluster vocabulary (Group 4 — ported from the conflict-automation
+// work). Search intent (what a page is FOR) is distinct from funnel stage.
+export type Intent =
+  | "informational"
+  | "commercial"
+  | "transactional"
+  | "navigational";
+export type ClusterAction = "merge" | "consolidate" | "differentiate" | "keep-both";
+
+export const INTENT_STYLE: Record<Intent, string> = {
+  informational: "bg-sky-50 text-sky-700 border-sky-200",
+  commercial:    "bg-violet-50 text-violet-700 border-violet-200",
+  transactional: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  navigational:  "bg-slate-100 text-slate-600 border-slate-200",
+};
+
+export const ACTION_STYLE: Record<ClusterAction, { label: string; cls: string; hint: string }> = {
+  merge:         { label: "Merge → 301", cls: "bg-rose-100 text-rose-700 border-rose-200", hint: "Near-duplicate, same intent — redirect the loser into the winner." },
+  consolidate:   { label: "Consolidate", cls: "bg-amber-100 text-amber-800 border-amber-200", hint: "Strong overlap, same intent — keep the winner, re-link the other as support." },
+  differentiate: { label: "Differentiate", cls: "bg-blue-100 text-blue-700 border-blue-200", hint: "Same intent, partial overlap — rewrite to separate the angles." },
+  "keep-both":   { label: "Keep both", cls: "bg-emerald-100 text-emerald-700 border-emerald-200", hint: "Different intent — no conflict." },
+};
+
+/** `/path` from a full URL, falling back to the raw string. */
+export function pathOf(url: string): string {
+  try { return new URL(url).pathname; } catch { return url; }
+}
+
 export function TypeChip({
   type,
   size = "sm",
