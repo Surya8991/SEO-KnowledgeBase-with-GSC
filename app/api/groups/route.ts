@@ -59,8 +59,11 @@ export async function GET(request: NextRequest) {
     const topK = Math.min(Math.max(Number(p.get("topK")) || t.groupTopK, 1), 20);
     const minSize = Math.max(2, Number(p.get("minSize")) || 2);
     const limit = Math.min(Math.max(Number(p.get("limit")) || 100, 1), 500);
-    // Fetch down to the lowest rule bar; shouldGroupPair applies the real gates.
-    const fetchBar = Math.min(t.groupSimilarity, t.groupSimCourseTitle);
+    // Fetch down to the body-relatedness floor; evaluatePair then requires a
+    // real topic anchor (slug/title/H1 overlap). Lower than the old same-type
+    // bar so a category listing and a blog on the SAME topic (different formats
+    // → moderate body cosine) become candidate pairs.
+    const fetchBar = t.groupBodyFloor;
 
     const client = neon(process.env.DATABASE_URL || "postgresql://user:password@localhost/db");
     const rawPairs = neonRows<PairRow>(await client.query(
@@ -165,10 +168,13 @@ export async function GET(request: NextRequest) {
         return classifyIntent({ title: m?.title, slug: url, contentType: m?.type }).label;
       });
       const action = groupAction(maxSim[gi], intents);
-      const type = meta.get(urls[0])?.type ?? "page";
+      // Groups are now topic-anchored and can span content types (e.g. a
+      // category listing + a blog on the same topic), so describe that.
+      const types = Array.from(new Set(urls.map((u) => meta.get(u)?.type).filter(Boolean))) as string[];
+      const typeLabel = types.length === 1 ? `${types[0]} pages` : `pages across ${types.length} content types`;
       const sameIntent = intents.every((x) => x === intents[0]);
-      const reason = `${urls.length} ${type} pages with up to ${(maxSim[gi] * 100).toFixed(0)}% content overlap${
-        sameIntent ? ` targeting the same ${intents[0]} intent` : ", mixed search intent"
+      const reason = `${urls.length} ${typeLabel} on the same topic, up to ${(maxSim[gi] * 100).toFixed(0)}% content overlap${
+        sameIntent ? ` and the same ${intents[0]} intent` : ", mixed search intent"
       }.`;
 
       const members = urls
