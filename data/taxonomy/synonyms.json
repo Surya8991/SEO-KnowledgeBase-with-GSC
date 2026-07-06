@@ -1,0 +1,212 @@
+{
+  "ai": [
+    "artificial intelligence",
+    "machine learning",
+    "deep learning",
+    "neural network"
+  ],
+  "artificial intelligence": [
+    "ai",
+    "machine learning",
+    "deep learning"
+  ],
+  "ml": [
+    "machine learning",
+    "ai",
+    "deep learning"
+  ],
+  "machine learning": [
+    "ml",
+    "ai",
+    "deep learning"
+  ],
+  "hr": [
+    "human resource",
+    "people management",
+    "talent management",
+    "workforce"
+  ],
+  "human resource": [
+    "hr",
+    "people management",
+    "talent management"
+  ],
+  "people management": [
+    "hr",
+    "human resource",
+    "team management"
+  ],
+  "devops": [
+    "dev ops",
+    "ci cd",
+    "continuous integration",
+    "continuous delivery"
+  ],
+  "cloud": [
+    "cloud computing",
+    "aws",
+    "azure",
+    "gcp"
+  ],
+  "cloud computing": [
+    "cloud",
+    "aws",
+    "azure",
+    "gcp"
+  ],
+  "data science": [
+    "data analytics",
+    "data analysis",
+    "data engineering"
+  ],
+  "data analytics": [
+    "data science",
+    "data analysis",
+    "business intelligence"
+  ],
+  "cybersecurity": [
+    "cyber security",
+    "information security",
+    "infosec",
+    "security"
+  ],
+  "leadership": [
+    "management",
+    "executive",
+    "leader"
+  ],
+  "management": [
+    "leadership",
+    "manager",
+    "managing"
+  ],
+  "agile": [
+    "scrum",
+    "kanban",
+    "lean",
+    "sprint"
+  ],
+  "scrum": [
+    "agile",
+    "kanban",
+    "sprint"
+  ],
+  "project management": [
+    "pmp",
+    "prince2",
+    "program management"
+  ],
+  "iot": [
+    "internet of things",
+    "embedded",
+    "sensors"
+  ],
+  "internet of things": [
+    "iot",
+    "embedded",
+    "smart devices"
+  ],
+  "blockchain": [
+    "cryptocurrency",
+    "crypto",
+    "web3",
+    "defi"
+  ],
+  "communication": [
+    "interpersonal",
+    "presentation",
+    "public speaking"
+  ],
+  "soft skills": [
+    "interpersonal skills",
+    "communication",
+    "emotional intelligence"
+  ],
+  "python": [
+    "django",
+    "flask",
+    "pandas",
+    "numpy"
+  ],
+  "javascript": [
+    "react",
+    "angular",
+    "vue",
+    "node",
+    "typescript"
+  ],
+  "kubernetes": [
+    "k8s",
+    "container orchestration",
+    "docker"
+  ],
+  "docker": [
+    "container",
+    "containerization",
+    "kubernetes"
+  ],
+  "aws": [
+    "amazon web services",
+    "cloud",
+    "ec2",
+    "s3",
+    "lambda"
+  ],
+  "azure": [
+    "microsoft azure",
+    "cloud",
+    "microsoft cloud"
+  ],
+  "risk management": [
+    "risk assessment",
+    "enterprise risk",
+    "compliance"
+  ],
+  "marketing": [
+    "digital marketing",
+    "content marketing",
+    "seo",
+    "branding"
+  ],
+  "sales": [
+    "business development",
+    "crm",
+    "selling",
+    "revenue"
+  ],
+  "dei": [
+    "diversity",
+    "equity",
+    "inclusion",
+    "belonging"
+  ],
+  "diversity": [
+    "dei",
+    "inclusion",
+    "equity",
+    "belonging"
+  ],
+  "safety": [
+    "workplace safety",
+    "osha",
+    "health and safety"
+  ],
+  "virtualization": [
+    "vmware",
+    "hyper-v",
+    "virtual machine"
+  ],
+  "networking": [
+    "network",
+    "cisco",
+    "routing",
+    "switching"
+  ],
+  "database": [
+    "sql",
+    "nosql",
+    "mysql",
+    "postgresql",
+    "mongodb"
+  ]
+}

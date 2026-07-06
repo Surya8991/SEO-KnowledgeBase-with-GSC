@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Conflict Checker — Setup Guide</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#121831; --panel2:#0f1530; --border:#1f2747;
+    --text:#e7ecf5; --muted:#9aa6c2; --accent:#7c9cff; --accent2:#22d3ee;
+    --ok:#34d399; --warn:#fbbf24; --danger:#f87171; --code:#0a0f22;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:920px;margin:0 auto;padding:32px 24px 80px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,#7c9cff,#22d3ee);display:flex;align-items:center;justify-content:center;font-weight:800;color:#0b1020}
+  h1{font-size:24px;margin:0}
+  .sub{color:var(--muted);font-size:13px}
+  .envbox{background:var(--panel2);border:1px solid var(--border);padding:10px 12px;border-radius:10px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--muted);word-break:break-all}
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin:18px 0 28px}
+  .toc h3{margin:0 0 8px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .toc ol{margin:0;padding-left:18px}
+  .toc li{margin:4px 0}
+  .step{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:22px 24px;margin:18px 0}
+  .step h2{margin:0 0 4px;font-size:19px;display:flex;align-items:center;gap:10px}
+  .pill{display:inline-block;font-size:11px;padding:3px 8px;border-radius:999px;font-weight:600;letter-spacing:.04em}
+  .pill.req{background:rgba(248,113,113,.15);color:#fda4af;border:1px solid rgba(248,113,113,.35)}
+  .pill.opt{background:rgba(148,163,184,.15);color:#cbd5e1;border:1px solid rgba(148,163,184,.35)}
+  .pill.done{background:rgba(52,211,153,.15);color:#86efac;border:1px solid rgba(52,211,153,.35)}
+  .pill.tab{background:rgba(124,156,255,.15);color:#a5b4fc;border:1px solid rgba(124,156,255,.35)}
+  .time{color:var(--muted);font-size:13px;margin-left:auto}
+  .step .hdr{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  ol.steps{padding-left:22px}
+  ol.steps > li{margin:8px 0}
+  code{background:var(--code);padding:2px 6px;border-radius:6px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;color:#e2e8f0;border:1px solid var(--border)}
+  pre{background:var(--code);border:1px solid var(--border);border-radius:10px;padding:12px 14px;overflow:auto;font-size:12.5px;line-height:1.55;position:relative}
+  pre code{background:transparent;border:0;padding:0;color:#cbd5e1}
+  .copy{position:absolute;top:8px;right:8px;background:var(--panel);border:1px solid var(--border);color:var(--text);font-size:11px;padding:4px 8px;border-radius:6px;cursor:pointer}
+  .copy:hover{background:#1c2547}
+  .copy.ok{color:#86efac;border-color:rgba(52,211,153,.45)}
+  .btn{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#7c9cff,#22d3ee);color:#0b1020;font-weight:700;padding:9px 14px;border-radius:9px;text-decoration:none;font-size:13.5px;border:0}
+  .btn:hover{filter:brightness(1.05);text-decoration:none}
+  .btn.alt{background:transparent;color:var(--text);border:1px solid var(--border)}
+  .links{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px}
+  .note{background:rgba(124,156,255,.07);border:1px solid rgba(124,156,255,.3);border-radius:10px;padding:10px 12px;color:#dbe4ff;font-size:13.5px;margin:10px 0}
+  .warn{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.35);border-radius:10px;padding:10px 12px;color:#fde68a;font-size:13.5px;margin:10px 0}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:14px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+  tr:last-child td{border-bottom:0}
+  footer{margin-top:40px;text-align:center;color:var(--muted);font-size:12.5px}
+  kbd{background:var(--panel2);border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:1px 6px;font-family:inherit;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="brand">
+    <div class="logo">CC</div>
+    <div>
+      <h1>Conflict Checker — Setup Guide</h1>
+      <div class="sub">Follow the steps in order. Each step says what to do, where to click, and what to paste.</div>
+    </div>
+  </div>
+</header>
+
+<div class="envbox">
+  <strong>Your <code>.env</code> file:</strong>
+  At the repo root, next to <code>.env.example</code>. Create it with
+  <code>cp .env.example .env</code> if it doesn't exist.
+  On Vercel, paste the same keys into
+  <em>Project → Settings → Environment Variables</em>.
+</div>
+
+<div class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#step1">Neon Database</a> <span class="pill req">required</span></li>
+    <li><a href="#step2">Google Search Console OAuth</a> <span class="pill tab">GSC tab</span></li>
+    <li><a href="#step3">Serper</a> <span class="pill tab">Competitors tab</span></li>
+    <li><a href="#step4">Claude API</a> <span class="pill opt">optional</span></li>
+    <li><a href="#step5">OpenAI</a> <span class="pill opt">later</span></li>
+    <li><a href="#priority">Quick priority table</a></li>
+  </ol>
+</div>
+
+<div class="note">
+  <strong>Already done ✅</strong> — <code>GROQ_API_KEY</code> is set. <strong>DATABASE_URL</strong> is set and the schema is created. The 2,478-URL ingest is running in the background.
+</div>
+
+<!-- STEP 1 -->
+<section class="step" id="step1">
+  <div class="hdr">
+    <h2>① Neon Database</h2>
+    <span class="pill done">done</span>
+    <span class="time">~3 min</span>
+  </div>
+  <p>Without this, nothing gets saved and the Conflict Checker can't compare against existing pages.</p>
+  <div class="links">
+    <a class="btn" href="https://console.neon.tech/signup" target="_blank">Open Neon ↗</a>
+  </div>
+  <ol class="steps">
+    <li>Go to <a href="https://console.neon.tech/signup" target="_blank">console.neon.tech/signup</a> and sign in with Google (<code>marketing@edstellar.com</code>). Free tier is fine.</li>
+    <li>Click <strong>"Create a project"</strong>.
+      <ul>
+        <li>Name: <code>conflict-checker</code></li>
+        <li>Postgres: default (17)</li>
+        <li>Region: closest to you (Asia Pacific = Singapore/Mumbai)</li>
+      </ul>
+    </li>
+    <li>On the project dashboard find <strong>"Connection string"</strong>. Toggle <strong>Pooled connection</strong> on, then click <strong>copy</strong>.</li>
+    <li>Open <code>.env</code> and paste it:
+<pre><code>DATABASE_URL=postgresql://neondb_owner:...@ep-...-pooler.region.aws.neon.tech/neondb?sslmode=require</code><button class="copy" data-copy="DATABASE_URL=">Copy</button></pre>
+    </li>
+    <li>Save the file. Tell me <em>"Neon done"</em> — I run <code>npm run db:setup</code> and start ingesting.</li>
+  </ol>
+</section>
+
+<!-- STEP 2 -->
+<section class="step" id="step2">
+  <div class="hdr">
+    <h2>② Google Search Console OAuth</h2>
+    <span class="pill tab">enables Search Console tab</span>
+    <span class="time">~5 min</span>
+  </div>
+  <p>Lets you pull GSC performance data (clicks, impressions, CTR, position) for any window from 24h to 12 months. Skip if you only want conflict checking.</p>
+  <div class="links">
+    <a class="btn" href="https://console.cloud.google.com/" target="_blank">Open Google Cloud Console ↗</a>
+    <a class="btn alt" href="https://console.cloud.google.com/apis/library/searchconsole.googleapis.com" target="_blank">Enable Search Console API ↗</a>
+  </div>
+  <ol class="steps">
+    <li>Open <a href="https://console.cloud.google.com/" target="_blank">console.cloud.google.com</a>. Sign in with the Google account that owns Search Console for edstellar.com.</li>
+    <li>Top bar → project dropdown → <strong>"New Project"</strong>. Name <code>conflict-checker</code>, create, then select it.</li>
+    <li>Enable the API: open <a href="https://console.cloud.google.com/apis/library/searchconsole.googleapis.com" target="_blank">this link</a> → click <strong>Enable</strong>.</li>
+    <li>Configure the OAuth consent screen: <a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank">credentials/consent</a>
+      <ul>
+        <li>User type: <strong>External</strong> → Create</li>
+        <li>App name: <code>Conflict Checker</code></li>
+        <li>Support email / Developer contact: <code>marketing@edstellar.com</code></li>
+        <li>Skip Scopes. On <strong>Test Users</strong>, add <code>marketing@edstellar.com</code>.</li>
+        <li>Save and continue → Back to Dashboard.</li>
+      </ul>
+    </li>
+    <li>Create the OAuth client: <a href="https://console.cloud.google.com/apis/credentials" target="_blank">credentials</a> → <strong>+ Create Credentials</strong> → <strong>OAuth client ID</strong>
+      <ul>
+        <li>Application type: <strong>Web application</strong></li>
+        <li>Name: <code>Conflict Checker Local</code></li>
+        <li>Authorized redirect URI:
+<pre><code>http://localhost:3000/api/gsc/callback</code><button class="copy" data-copy="http://localhost:3000/api/gsc/callback">Copy</button></pre>
+        </li>
+        <li>Create.</li>
+      </ul>
+    </li>
+    <li>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> from the popup, paste into <code>.env</code>:
+<pre><code>GOOGLE_CLIENT_ID=xxxxxxxxxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-xxxxxxxx</code><button class="copy" data-copy="GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=">Copy</button></pre>
+    </li>
+    <li>Save. The <strong>Connect Google</strong> button on the Search Console tab will now work.</li>
+  </ol>
+</section>
+
+<!-- STEP 3 -->
+<section class="step" id="step3">
+  <div class="hdr">
+    <h2>③ Serper</h2>
+    <span class="pill tab">enables Competitors tab</span>
+    <span class="time">~2 min</span>
+  </div>
+  <p>Runs Google searches for a topic to find competitor pages. Free tier = 2,500 searches.</p>
+  <div class="links">
+    <a class="btn" href="https://serper.dev" target="_blank">Open Serper ↗</a>
+  </div>
+  <ol class="steps">
+    <li>Go to <a href="https://serper.dev" target="_blank">serper.dev</a> → <strong>Sign up</strong> with Google.</li>
+    <li>On the Dashboard, copy the <strong>API Key</strong> shown at the top.</li>
+    <li>Paste into <code>.env</code>:
+<pre><code>SERPER_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code><button class="copy" data-copy="SERPER_API_KEY=">Copy</button></pre>
+    </li>
+    <li>Save.</li>
+  </ol>
+</section>
+
+<!-- STEP 4 -->
+<section class="step" id="step4">
+  <div class="hdr">
+    <h2>④ Claude API</h2>
+    <span class="pill opt">optional</span>
+    <span class="time">~2 min</span>
+  </div>
+  <p>You already have Groq (fast). Claude writes higher-quality summaries / conflict rationales — at the cost of speed.</p>
+  <div class="links">
+    <a class="btn" href="https://console.anthropic.com/" target="_blank">Open Anthropic Console ↗</a>
+  </div>
+  <ol class="steps">
+    <li>Go to <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a>, sign up.</li>
+    <li><strong>Settings → API Keys → Create Key</strong>. Copy (starts with <code>sk-ant-</code>).</li>
+    <li>Paste into <code>.env</code>:
+<pre><code>ANTHROPIC_API_KEY=sk-ant-...</code><button class="copy" data-copy="ANTHROPIC_API_KEY=">Copy</button></pre>
+    </li>
+    <li>To switch from Groq to Claude:
+<pre><code>AI_CHAT_PROVIDER=claude</code><button class="copy" data-copy="AI_CHAT_PROVIDER=claude">Copy</button></pre>
+    </li>
+  </ol>
+</section>
+
+<!-- STEP 5 -->
+<section class="step" id="step5">
+  <div class="hdr">
+    <h2>⑤ OpenAI</h2>
+    <span class="pill opt">later</span>
+  </div>
+  <p>OpenAI adapters are wired up but inactive. When you get a key:</p>
+  <ol class="steps">
+    <li>Get key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a>.</li>
+    <li>Paste into <code>.env</code>:
+<pre><code>OPENAI_API_KEY=sk-...
+AI_EMBED_PROVIDER=openai</code><button class="copy" data-copy="OPENAI_API_KEY=
+AI_EMBED_PROVIDER=openai">Copy</button></pre>
+    </li>
+    <li>Tell me — I'll run the re-embed migration (384-dim local → 1536-dim OpenAI) and backfill.</li>
+  </ol>
+</section>
+
+<!-- PRIORITY -->
+<section class="step" id="priority">
+  <div class="hdr">
+    <h2>Quick priority</h2>
+  </div>
+  <table>
+    <thead><tr><th>You want to use…</th><th>Minimum required</th></tr></thead>
+    <tbody>
+      <tr><td>Paste a topic and see an AI summary</td><td><span class="pill done">already done</span> Groq key</td></tr>
+      <tr><td>Conflict scoring against Edstellar pages</td><td><span class="pill done">already done</span> Step 1 (Neon)</td></tr>
+      <tr><td>Search Console dashboard</td><td>Step 2</td></tr>
+      <tr><td>Competitor research</td><td>Step 3</td></tr>
+      <tr><td>Everything</td><td>Steps 2 + 3</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<div class="warn">
+  <strong>After each step</strong> — the dev server <strong>auto-reloads <code>.env</code></strong>. Just save the file. To restart manually: <kbd>Ctrl</kbd>+<kbd>C</kbd> in the dev terminal, then <code>npm run dev</code>.
+</div>
+
+<footer>
+  Open the app at <a href="http://localhost:3000" target="_blank">localhost:3000</a> · Edit <code>.env</code> any time · Hot reload is on
+</footer>
+
+</div>
+
+<script>
+  document.querySelectorAll('.copy').forEach(btn=>{
+    btn.addEventListener('click',async()=>{
+      try{
+        await navigator.clipboard.writeText(btn.getAttribute('data-copy'));
+        const old=btn.textContent;btn.textContent='Copied!';btn.classList.add('ok');
+        setTimeout(()=>{btn.textContent=old;btn.classList.remove('ok')},1200);
+      }catch(e){alert('Copy failed: '+e.message)}
+    });
+  });
+</script>
+</body>
+</html>

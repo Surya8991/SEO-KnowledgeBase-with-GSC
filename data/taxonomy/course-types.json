@@ -1,0 +1,960 @@
+[
+  {
+    "type": "Behavioral",
+    "count": 65,
+    "categories": [
+      {
+        "category": "Interpersonal Skills",
+        "count": 42,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 42
+          }
+        ]
+      },
+      {
+        "category": "Soft Skills",
+        "count": 23,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 23
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "Compliance",
+    "count": 52,
+    "categories": [
+      {
+        "category": "Workplace Safety",
+        "count": 19,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 19
+          }
+        ]
+      },
+      {
+        "category": "ISO and Other Standards",
+        "count": 19,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 19
+          }
+        ]
+      },
+      {
+        "category": "Data Privacy and Security",
+        "count": 14,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 14
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "IT & Technical",
+    "count": 1046,
+    "categories": [
+      {
+        "category": "Artificial Intelligence",
+        "count": 130,
+        "subcategories": [
+          {
+            "subcategory": "Machine Learning Training",
+            "count": 39
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 36
+          },
+          {
+            "subcategory": "ChatGPT Training",
+            "count": 23
+          },
+          {
+            "subcategory": "Natural Language Processing (NLP) Training",
+            "count": 9
+          },
+          {
+            "subcategory": "Deep Learning Training",
+            "count": 7
+          },
+          {
+            "subcategory": "Machine Learning",
+            "count": 5
+          },
+          {
+            "subcategory": "Computer Vision Training",
+            "count": 4
+          },
+          {
+            "subcategory": "Quantum Computing Training",
+            "count": 4
+          },
+          {
+            "subcategory": "Chatgpt",
+            "count": 1
+          },
+          {
+            "subcategory": "Deep Learning",
+            "count": 1
+          },
+          {
+            "subcategory": "Natural Language Processing Nlp",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "category": "Cloud Computing",
+        "count": 111,
+        "subcategories": [
+          {
+            "subcategory": "Oracle Training",
+            "count": 20
+          },
+          {
+            "subcategory": "Microsoft Azure Training",
+            "count": 12
+          },
+          {
+            "subcategory": "Cloud Infrastructure Training",
+            "count": 12
+          },
+          {
+            "subcategory": "Hybrid Cloud Training",
+            "count": 10
+          },
+          {
+            "subcategory": "Data Engineering Training",
+            "count": 10
+          },
+          {
+            "subcategory": "AWS Training",
+            "count": 9
+          },
+          {
+            "subcategory": "Cloud Security Training",
+            "count": 8
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 6
+          },
+          {
+            "subcategory": "Google Cloud Platform Training",
+            "count": 6
+          },
+          {
+            "subcategory": "PaaS Training",
+            "count": 5
+          },
+          {
+            "subcategory": "Serverless Computing Training",
+            "count": 5
+          },
+          {
+            "subcategory": "IaaS Training",
+            "count": 4
+          },
+          {
+            "subcategory": "Microsoft Azure",
+            "count": 2
+          },
+          {
+            "subcategory": "Aws",
+            "count": 1
+          },
+          {
+            "subcategory": "Google Cloud Platform",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "category": "Productivity Tools",
+        "count": 80,
+        "subcategories": [
+          {
+            "subcategory": "ERP Training",
+            "count": 33
+          },
+          {
+            "subcategory": "Salesforce Training",
+            "count": 12
+          },
+          {
+            "subcategory": "Collaboration and Communication Tools Training",
+            "count": 11
+          },
+          {
+            "subcategory": "Microsoft Office Tools Training",
+            "count": 11
+          },
+          {
+            "subcategory": "CRM Training",
+            "count": 8
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 4
+          },
+          {
+            "subcategory": "Salesforce",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "category": "Web Development",
+        "count": 70,
+        "subcategories": [
+          {
+            "subcategory": "Backend Development Training",
+            "count": 21
+          },
+          {
+            "subcategory": "Front End Development Training",
+            "count": 21
+          },
+          {
+            "subcategory": "Content Management Systems (CMS) Training",
+            "count": 12
+          },
+          {
+            "subcategory": "Full Stack Development Training",
+            "count": 9
+          },
+          {
+            "subcategory": "No Code Training",
+            "count": 7
+          }
+        ]
+      },
+      {
+        "category": "Software Development",
+        "count": 58,
+        "subcategories": [
+          {
+            "subcategory": "Programming and Frameworks Training",
+            "count": 36
+          },
+          {
+            "subcategory": "Version Control Training",
+            "count": 12
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 10
+          }
+        ]
+      },
+      {
+        "category": "IT Operations",
+        "count": 55,
+        "subcategories": [
+          {
+            "subcategory": "IT Administration Training",
+            "count": 18
+          },
+          {
+            "subcategory": "IT Infrastructure Training",
+            "count": 14
+          },
+          {
+            "subcategory": "IT Service Management Training",
+            "count": 9
+          },
+          {
+            "subcategory": "Identity and Access Management Training",
+            "count": 6
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 4
+          },
+          {
+            "subcategory": "IT Security Training",
+            "count": 4
+          }
+        ]
+      },
+      {
+        "category": "Data Analytics",
+        "count": 54,
+        "subcategories": [
+          {
+            "subcategory": "Business Data Storytelling Training",
+            "count": 17
+          },
+          {
+            "subcategory": "Data Analysis Training",
+            "count": 13
+          },
+          {
+            "subcategory": "Business Intelligence Training",
+            "count": 9
+          },
+          {
+            "subcategory": "Business Analytics Training",
+            "count": 8
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 5
+          },
+          {
+            "subcategory": "Business Analytics",
+            "count": 2
+          }
+        ]
+      },
+      {
+        "category": "Design",
+        "count": 50,
+        "subcategories": [
+          {
+            "subcategory": "AutoCAD Training",
+            "count": 13
+          },
+          {
+            "subcategory": "Graphic Design Training",
+            "count": 10
+          },
+          {
+            "subcategory": "Animation Training",
+            "count": 7
+          },
+          {
+            "subcategory": "Photo Editing Training",
+            "count": 6
+          },
+          {
+            "subcategory": "UI/UX Design Training",
+            "count": 5
+          },
+          {
+            "subcategory": "Video Editing Training",
+            "count": 3
+          },
+          {
+            "subcategory": "Web Design Training",
+            "count": 3
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 2
+          },
+          {
+            "subcategory": "Ui Ux Design",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "category": "Networking",
+        "count": 44,
+        "subcategories": [
+          {
+            "subcategory": "Network Security Training",
+            "count": 29
+          },
+          {
+            "subcategory": "Telecommunications Training",
+            "count": 6
+          },
+          {
+            "subcategory": "Network Monitoring Training",
+            "count": 4
+          },
+          {
+            "subcategory": "Network Security",
+            "count": 3
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 2
+          }
+        ]
+      },
+      {
+        "category": "Software Testing",
+        "count": 44,
+        "subcategories": [
+          {
+            "subcategory": "Automation Testing Training",
+            "count": 20
+          },
+          {
+            "subcategory": "Manual Testing Training",
+            "count": 10
+          },
+          {
+            "subcategory": "Performance Testing Training",
+            "count": 8
+          },
+          {
+            "subcategory": "API Testing Training",
+            "count": 3
+          },
+          {
+            "subcategory": "Manual Testing",
+            "count": 1
+          },
+          {
+            "subcategory": "Api Testing",
+            "count": 1
+          },
+          {
+            "subcategory": "Performance Testing",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "category": "Database",
+        "count": 43,
+        "subcategories": [
+          {
+            "subcategory": "SQL Training",
+            "count": 20
+          },
+          {
+            "subcategory": "NoSQL Training",
+            "count": 13
+          },
+          {
+            "subcategory": "Data Management Training",
+            "count": 9
+          },
+          {
+            "subcategory": "Sql",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "category": "Big Data",
+        "count": 40,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 15
+          },
+          {
+            "subcategory": "ETL (Extract, Transform, Load) Training",
+            "count": 7
+          },
+          {
+            "subcategory": "Hadoop Training",
+            "count": 5
+          },
+          {
+            "subcategory": "Data Integration Training",
+            "count": 5
+          },
+          {
+            "subcategory": "Data Modeling Training",
+            "count": 3
+          },
+          {
+            "subcategory": "Data Warehousing Training",
+            "count": 3
+          },
+          {
+            "subcategory": "Data Modeling",
+            "count": 1
+          },
+          {
+            "subcategory": "Data Warehousing",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "category": "Cybersecurity",
+        "count": 38,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 33
+          },
+          {
+            "subcategory": "Penetration Testing Training",
+            "count": 4
+          },
+          {
+            "subcategory": "Security Awareness And Threat Management",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "category": "DevOps",
+        "count": 37,
+        "subcategories": [
+          {
+            "subcategory": "DevOps Tools Training",
+            "count": 17
+          },
+          {
+            "subcategory": "Container Orchestration Training",
+            "count": 15
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 4
+          },
+          {
+            "subcategory": "Devops Tools",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "category": "Geospatial Technologies",
+        "count": 34,
+        "subcategories": [
+          {
+            "subcategory": "Geographic Information System Training",
+            "count": 23
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 11
+          }
+        ]
+      },
+      {
+        "category": "Mobile App Development",
+        "count": 33,
+        "subcategories": [
+          {
+            "subcategory": "iOS Training",
+            "count": 12
+          },
+          {
+            "subcategory": "Android Training",
+            "count": 10
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 9
+          },
+          {
+            "subcategory": "Android",
+            "count": 1
+          },
+          {
+            "subcategory": "Ios",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "category": "Workflow Automation",
+        "count": 25,
+        "subcategories": [
+          {
+            "subcategory": "Robotic Process Automation (RPA) Training",
+            "count": 23
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 2
+          }
+        ]
+      },
+      {
+        "category": "Operating Systems",
+        "count": 24,
+        "subcategories": [
+          {
+            "subcategory": "UNIX Training",
+            "count": 12
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 7
+          },
+          {
+            "subcategory": "macOS Training",
+            "count": 3
+          },
+          {
+            "subcategory": "Unix",
+            "count": 2
+          }
+        ]
+      },
+      {
+        "category": "Virtualization",
+        "count": 24,
+        "subcategories": [
+          {
+            "subcategory": "VMware Training",
+            "count": 17
+          },
+          {
+            "subcategory": "Citrix Training",
+            "count": 5
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 2
+          }
+        ]
+      },
+      {
+        "category": "IoT",
+        "count": 18,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 9
+          },
+          {
+            "subcategory": "Embedded Systems Training",
+            "count": 9
+          }
+        ]
+      },
+      {
+        "category": "Data Science",
+        "count": 18,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 18
+          }
+        ]
+      },
+      {
+        "category": "Blockchain and Cryptocurrency",
+        "count": 16,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 16
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "Leadership",
+    "count": 117,
+    "categories": [
+      {
+        "category": "Strategic Leadership",
+        "count": 67,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 67
+          }
+        ]
+      },
+      {
+        "category": "People Management",
+        "count": 29,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 29
+          }
+        ]
+      },
+      {
+        "category": "Leadership Communication",
+        "count": 12,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 12
+          }
+        ]
+      },
+      {
+        "category": "Decision Making",
+        "count": 9,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 9
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "Management",
+    "count": 339,
+    "categories": [
+      {
+        "category": "Operations Management",
+        "count": 75,
+        "subcategories": [
+          {
+            "subcategory": "Business Process Training",
+            "count": 17
+          },
+          {
+            "subcategory": "Logistics Training",
+            "count": 13
+          },
+          {
+            "subcategory": "Procurement Management Training",
+            "count": 13
+          },
+          {
+            "subcategory": "Strategic Planning Training",
+            "count": 10
+          },
+          {
+            "subcategory": "Warehousing and Distribution Training",
+            "count": 9
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 5
+          },
+          {
+            "subcategory": "Inventory Management Training",
+            "count": 5
+          },
+          {
+            "subcategory": "Inventory Management",
+            "count": 1
+          },
+          {
+            "subcategory": "Warehousing And Distribution",
+            "count": 1
+          },
+          {
+            "subcategory": "Supply Chain Management",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "category": "Finance and Accounting",
+        "count": 64,
+        "subcategories": [
+          {
+            "subcategory": "Finance & Accounting Software Training",
+            "count": 15
+          },
+          {
+            "subcategory": "Taxation Training",
+            "count": 11
+          },
+          {
+            "subcategory": "Investing Training",
+            "count": 8
+          },
+          {
+            "subcategory": "Financial Modeling Training",
+            "count": 7
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 6
+          },
+          {
+            "subcategory": "Financial Planning Training",
+            "count": 6
+          },
+          {
+            "subcategory": "Financial Analysis Training",
+            "count": 5
+          },
+          {
+            "subcategory": "Banking Training",
+            "count": 2
+          },
+          {
+            "subcategory": "Quantitative Finance Training",
+            "count": 2
+          },
+          {
+            "subcategory": "Financial Modeling",
+            "count": 1
+          },
+          {
+            "subcategory": "Taxation",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "category": "Sales",
+        "count": 50,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 23
+          },
+          {
+            "subcategory": "Customer Service Training",
+            "count": 14
+          },
+          {
+            "subcategory": "Prospecting and Lead Generation Training",
+            "count": 13
+          }
+        ]
+      },
+      {
+        "category": "Quality Management",
+        "count": 34,
+        "subcategories": [
+          {
+            "subcategory": "Process Improvement Training",
+            "count": 18
+          },
+          {
+            "subcategory": "Lean Training",
+            "count": 9
+          },
+          {
+            "subcategory": "Six Sigma Training",
+            "count": 6
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "category": "Marketing",
+        "count": 27,
+        "subcategories": [
+          {
+            "subcategory": "Digital Marketing Training",
+            "count": 12
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 10
+          },
+          {
+            "subcategory": "Marketing Tools Training",
+            "count": 4
+          },
+          {
+            "subcategory": "Digital Marketing",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "category": "Human Resource",
+        "count": 27,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 12
+          },
+          {
+            "subcategory": "HRMS & HRIS Training",
+            "count": 7
+          },
+          {
+            "subcategory": "Recruitment and Staffing Training",
+            "count": 4
+          },
+          {
+            "subcategory": "Workforce Capability Management Training",
+            "count": 4
+          }
+        ]
+      },
+      {
+        "category": "Project Management",
+        "count": 24,
+        "subcategories": [
+          {
+            "subcategory": "Project Management Tools Training",
+            "count": 13
+          },
+          {
+            "subcategory": "(No subcategory)",
+            "count": 8
+          },
+          {
+            "subcategory": "Agile Training",
+            "count": 3
+          }
+        ]
+      },
+      {
+        "category": "Risk Management",
+        "count": 22,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 22
+          }
+        ]
+      },
+      {
+        "category": "Product Management",
+        "count": 16,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 16
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "Social Impact",
+    "count": 81,
+    "categories": [
+      {
+        "category": "Environmental Sustainability",
+        "count": 59,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 59
+          }
+        ]
+      },
+      {
+        "category": "Workplace Diversity and Inclusion",
+        "count": 13,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 13
+          }
+        ]
+      },
+      {
+        "category": "Health and Well-Being",
+        "count": 9,
+        "subcategories": [
+          {
+            "subcategory": "(No subcategory)",
+            "count": 9
+          }
+        ]
+      }
+    ]
+  }
+]
