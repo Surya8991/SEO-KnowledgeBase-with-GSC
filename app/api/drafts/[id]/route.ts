@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { drafts } from "@/lib/db/schema";
 import { auth, isAuthEnabled } from "@/auth";
 import { clientIp } from "@/lib/rate-limit";
+import { secureEquals } from "@/lib/secure-compare";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ const PatchBody = z.object({
 function workerKeyOk(req: NextRequest): boolean {
   const required = process.env.WORKER_API_KEY;
   if (!required) return false;
-  return req.headers.get("x-worker-key") === required;
+  return secureEquals(req.headers.get("x-worker-key"), required);
 }
 
 async function sessionOk(req: NextRequest): Promise<boolean> {

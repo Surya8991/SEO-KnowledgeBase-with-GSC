@@ -11,6 +11,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:setup": "tsx scripts/db-setup.ts",
     "ingest": "tsx scripts/ingest.ts",
     "backfill:tags": "tsx scripts/backfill-tags.ts",
@@ -48,6 +50,7 @@
     "drizzle-kit": "^0.31.10",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.1.9"
   }
 }
