@@ -2,6 +2,12 @@ import * as cheerio from "cheerio";
 import { assertSafeOutboundUrl } from "./ssrf-guard";
 
 export interface ExtractedPage {
+  /**
+   * The FINAL URL after following redirects — `fetchAndExtract` sets this to the
+   * last hop, so callers can compare it to the URL they requested to detect a
+   * 301/302 (scripts/ingest.ts relies on this to avoid storing a redirect
+   * target's content under the stale source URL — PROJECTLOG §17H).
+   */
   url: string;
   title: string | null;
   metaDescription: string | null;
