@@ -44,6 +44,7 @@ async function main() {
   let done = 0;
   let skipped = 0;
   let failed = 0;
+  let redirected = 0;
 
   // Simple worker pool over the entry list.
   const queue = [...entries];
@@ -68,6 +69,27 @@ async function main() {
         }
 
         const page = await fetchAndExtract(entry.url);
+
+        // Redirect guard (PROJECTLOG §17H): fetchAndExtract follows redirects,
+        // so `page.url` is the FINAL URL. If it differs from the requested URL
+        // this row 301/302'd — storing the target's content under the old URL
+        // (and letting canonical_url = EXCLUDED overwrite detect-redirects'
+        // mark) would resurrect a stale page as a byte-identical duplicate.
+        // Instead: mark the old URL stale, record the target, keep NO content.
+        if (page.url.replace(/\/$/, "") !== entry.url.replace(/\/$/, "")) {
+          await sql.query(
+            `UPDATE pages
+               SET is_stale = true,
+                   canonical_url = $2,
+                   stale_reason = 'redirect (ingest)',
+                   crawled_at = now()
+             WHERE url = $1`,
+            [entry.url, page.url],
+          );
+          redirected++;
+          continue;
+        }
+
         const text = [page.title, page.h1, page.contentText]
           .filter(Boolean)
           .join("\n")
@@ -103,7 +125,11 @@ async function main() {
              crawled_at = now(),
              canonical_url = EXCLUDED.canonical_url,
              image_count = EXCLUDED.image_count,
-             images_no_alt = EXCLUDED.images_no_alt`,
+             images_no_alt = EXCLUDED.images_no_alt,
+             -- A page that just re-fetched 200 is live again: clear any stale
+             -- mark a prior redirect scan left (ingest doubles as a heal pass).
+             is_stale = false,
+             stale_reason = NULL`,
           [
             entry.url,
             page.title,
@@ -140,7 +166,7 @@ async function main() {
     Array.from({ length: Math.max(1, args.concurrency) }, (_, i) => worker(i + 1)),
   );
 
-  console.log(`\n✓ Ingest complete: ${done} embedded, ${skipped} skipped, ${failed} failed.`);
+  console.log(`\n✓ Ingest complete: ${done} embedded, ${skipped} skipped, ${redirected} redirected (marked stale), ${failed} failed.`);
 }
 
 main().catch((e) => {
