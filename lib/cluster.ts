@@ -1,227 +1,290 @@
 /**
- * Connected-components clustering (plans/01-conflict-automation.md, Stage 6).
+ * Center-based ("leader") topic clustering for Content Clusters
+ * (PROJECTLOG §17D-E - replaces the old body-embedding connected-components
+ * approach, which chained different topics into a single 375-page hairball).
  *
- * The corpus scan (scripts/catalog-conflicts.ts) emits near-duplicate PAIRS.
- * A topic cluster is a connected component of that graph: page A links B, B
- * links C ⇒ {A,B,C} is one group even if A↔C was never directly compared.
+ * A cluster = one TOPIC across content types (the category page is the natural
+ * pillar; its courses/blogs are spokes). Every member matches the cluster's
+ * SEED directly by distinctive-topic-token overlap - never member↔member - so
+ * transitive chaining is impossible by construction.
  *
- * Pure + deterministic (union-find with path compression). Unit-tested.
+ * Pure + deterministic. Unit-tested in cluster.test.ts against the user's exact
+ * acceptance examples (big-data vs sales/data-analytics/blog/courses).
  */
-
-import { jaccard, tokenize } from "@/lib/signals";
 import { THRESHOLDS, type Thresholds } from "@/lib/thresholds";
+import {
+  buildDfIndex,
+  topicKey,
+  topicOverlap,
+  sharedTopicTerms,
+  topicLabel,
+  labelFromTerms,
+  type DfIndex,
+  type SignalInput,
+  type TopicKey,
+} from "@/lib/signals";
+import { matchSeries, type Series } from "@/lib/series";
 
-/** A single similarity edge between two node ids (e.g. page URLs). */
-export type Edge = readonly [string, string];
-
-export interface CandidatePair {
-  aType: string | null;
-  bType: string | null;
-  aTitle: string | null;
-  bTitle: string | null;
-  aH1?: string | null;
-  bH1?: string | null;
-  aDescription?: string | null;
-  bDescription?: string | null;
-  aUrl?: string | null;
-  bUrl?: string | null;
-  /** Body cosine similarity 0..1. */
-  sim: number;
+export interface ClusterPage {
+  url: string;
+  title: string | null;
+  h1?: string | null;
+  type: string | null;
+  tokenCount?: number | null;
 }
 
-/** Lexical signals that can corroborate a cluster edge. */
-export type EvidenceSignal = "title" | "h1" | "description" | "url" | "body";
-
-export interface PairEvidence {
-  group: boolean;
-  /** Which signals support this edge (body listed when ≥ the type floor). */
-  support: EvidenceSignal[];
+export interface ClusterMember {
+  url: string;
+  title: string | null;
+  type: string | null;
+  /** Distinctive topic tokens shared with the seed (the "why grouped" tags). */
+  sharedTerms: string[];
+  /** IDF-weighted topic overlap vs the seed, 0..1 (1 for the seed itself). */
+  matchSim: number;
+  /** Body cosine vs the seed when the caller supplied it, else null. */
+  bodySim: number | null;
+  isSeed: boolean;
 }
 
-/** Plural-normalized tokens for corroboration matching: "skill gaps" must
- *  match "skills gap" (measured false-negative in the live corpus). Both
- *  sides get the same normalization, so consistency is what matters. */
-function supportTokens(text: string | null | undefined): string[] {
-  return tokenize(text).map((tok) => (tok.length > 3 ? tok.replace(/s$/, "") : tok));
+export interface TopicCluster {
+  seedUrl: string;
+  /** Human-readable topic label, e.g. "big data" (seed's distinctive terms). */
+  label: string;
+  members: ClusterMember[];
+  /** True when this is a programmatic blog SERIES (lib/series.ts) grouped by
+   *  slug template, not by topic-token overlap. Series are always
+   *  "differentiate" and skip the body floor. */
+  isSeries?: boolean;
 }
 
-/**
- * Corpus-generic words that appear in almost every page's slug/title and so
- * carry NO topic signal. Without stripping these, "adobe-illustrator-training"
- * and "ai-for-ceos-training" anchor on the shared "training", and transitive
- * union-find chains the whole catalogue into one mega-cluster. Anchoring must
- * rest on DISTINCTIVE subject tokens (adobe/illustrator, big/data), so these
- * are removed before the topic-anchor Jaccard. Env-extend via
- * CONFLICT_TOPIC_STOPWORDS (comma-separated).
- */
-const TOPIC_STOPWORDS = new Set<string>([
-  "training", "course", "workshop", "certification", "certificate", "program",
-  "programme", "masterclass", "bootcamp", "tutorial", "class", "classes", "lesson",
-  "corporate", "enterprise", "online", "free", "professional", "instructor", "led",
-  "for", "and", "the", "of", "in", "to", "with", "your", "our", "a", "an", "on", "at",
-  "best", "top", "list", "guide", "company", "companie", "service", "example",
-  "tip", "idea", "activitie", "activity", "game", "exercise", "employee", "team",
-  "how", "what", "why", "when", "where", "vs", "using", "use",
-  ...(process.env.CONFLICT_TOPIC_STOPWORDS?.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) ?? []),
-]);
-
-/** Distinctive (stopword-filtered) subject tokens used for topic anchoring. */
-function anchorTokens(text: string | null | undefined): string[] {
-  return supportTokens(text).filter((t) => t.length > 2 && !TOPIC_STOPWORDS.has(t));
+export interface ClusterResult {
+  clusters: TopicCluster[];
+  /** URLs whose topic is genuinely unique (never reached minSize) - an answer,
+   *  not a coverage gap. */
+  singletons: string[];
+  /** Total pages evaluated (every page is keyed and considered). */
+  corpusSize: number;
+  /** The DF index built over the corpus - exposed so callers can reuse it. */
+  dfIndex: DfIndex;
 }
 
 /**
- * Plural-normalized DISTINCTIVE tokens of the FINAL slug segment only — the
- * actual subject ("big-data-training" → {big,data}), not the shared path prefix
- * ("category"/"course") nor generic words ("training"). Using the whole path or
- * generic tokens lets unrelated same-type pages anchor on common words, which
- * is exactly the false-cluster bug this rewrite fixes.
+ * Pillar-priority seed ordering: hubs become seeds before their spokes, so a
+ * course/blog attaches to its category rather than seeding a rival cluster.
  */
-function lastSlugTokens(url: string | null | undefined): string[] {
-  if (!url) return [];
-  let path = url;
-  try {
-    path = new URL(url).pathname;
-  } catch {
-    /* not an absolute URL — treat the raw string as a path */
-  }
-  const seg = path.split("/").filter(Boolean).pop() ?? "";
-  return anchorTokens(seg.replace(/[-_]+/g, " ").replace(/\.[a-z0-9]+$/i, ""));
+const SEED_RANK: Record<string, number> = {
+  category: 0,
+  subcategory: 1,
+  "excellence-program": 2,
+  "managed-training": 3,
+  platform: 3,
+  consulting: 3,
+  location: 3,
+  templates: 3,
+  course: 4,
+  blog: 5,
+  static: 6,
+};
+export function seedRank(type: string | null): number {
+  return SEED_RANK[type ?? "static"] ?? 6;
 }
 
+/** Hub content types whose clusters are pillar/spoke families. */
+export const HUB_TYPES = new Set(["category", "subcategory", "excellence-program"]);
+
+export interface ClusterOpts {
+  dfCap?: number;
+  overlap?: number;
+  bodyFloor?: number;
+  bigramWeight?: number;
+  minSize?: number;
+  /**
+   * Body cosine between seed and candidate URLs, when the caller can supply it
+   * (the route computes these in one batched query). Return null/undefined when
+   * unknown → the body floor is skipped for that pair.
+   */
+  bodySim?: (seedUrl: string, memberUrl: string) => number | null | undefined;
+  /**
+   * Programmatic blog series (lib/series.SERIES). When provided, pages matching
+   * a series template are pulled OUT of topic clustering and grouped into one
+   * cluster per series (overrides topic membership). Omit to disable (pure
+   * topic clustering - used by the unit tests).
+   */
+  series?: Series[];
+}
+
+const sigInput = (p: ClusterPage): SignalInput => ({ title: p.title, h1: p.h1, url: p.url });
 
 /**
- * Topic-first edge evidence (rewritten — the tool groups pages about the SAME
- * TOPIC, regardless of page type).
- *
- * Why the rewrite: the previous logic gated on SAME content-type + body cosine.
- * On the live corpus that (a) blocked genuinely-related cross-type pairs — the
- * `/category/big-data-training` listing and the `/blog/big-data-training-companies`
- * article never grouped — while (b) lumping 40 UNRELATED same-type pages together,
- * because category/course template boilerplate pushes body cosine past the
- * "self-sufficient" bar with zero topic overlap.
- *
- * The subject of a page lives in its SLUG / TITLE / H1 tokens
- * ("big-data-training"), which are template-independent. Body cosine only tells
- * you two pages read similarly — which, for templated pages, is noise. So:
- *
- *  1. TOPIC ANCHOR (required): slug OR title OR H1 plural-normalized Jaccard
- *     ≥ groupTopicAnchor. This is what "same topic" means. Description is
- *     corroboration only (boilerplate CTAs), never an anchor.
- *  2. BODY RELATEDNESS (required): body cosine ≥ groupBodyFloor — guards
- *     against a coincidental token match between genuinely different pages.
- *     Deliberately low so a category listing and a blog on the same topic
- *     (different formats → moderate cosine) still group.
- *  3. Content TYPE does NOT gate — cross-type same-topic pairs are exactly what
- *     we want to surface. Template-heavy bodies can no longer group different
- *     topics because the topic anchor is mandatory.
+ * Cluster a whole corpus by topic. Returns clusters (seeds with ≥ minSize
+ * members), the unique-topic singletons, and the DF index used.
  */
-export function evaluatePair(p: CandidatePair, t: Thresholds = THRESHOLDS): PairEvidence {
-  // Evidence tags for the UI use the full token sets (any overlap counts).
-  const support: EvidenceSignal[] = [];
-  if (jaccard(supportTokens(p.aTitle), supportTokens(p.bTitle)) >= t.groupSupportJaccard) support.push("title");
-  if (jaccard(supportTokens(p.aH1), supportTokens(p.bH1)) >= t.groupSupportJaccard) support.push("h1");
-  if (jaccard(supportTokens(p.aDescription), supportTokens(p.bDescription)) >= t.groupSupportJaccard) support.push("description");
-  const slugJ = jaccard(lastSlugTokens(p.aUrl), lastSlugTokens(p.bUrl));
-  if (slugJ >= t.groupSupportJaccard) support.push("url");
+export function clusterByTopic(
+  pages: ClusterPage[],
+  opts: ClusterOpts = {},
+  t: Thresholds = THRESHOLDS,
+): ClusterResult {
+  const dfCap = opts.dfCap ?? t.topicDfCap;
+  const overlapBar = opts.overlap ?? t.topicOverlap;
+  const bodyFloor = opts.bodyFloor ?? t.topicBodyFloor;
+  const bigramWeight = opts.bigramWeight ?? 2;
+  const minSize = Math.max(2, opts.minSize ?? 2);
 
-  // 1. Topic anchor — a SUBJECT-bearing signal (slug/title/H1) must strongly
-  //    overlap on its DISTINCTIVE (stopword-filtered) tokens, using token-SET
-  //    Jaccard. A single shared generic word ("training") scores low and never
-  //    anchors. Description is not subject-bearing enough to anchor on its own.
-  const titleAnchorJ = jaccard(anchorTokens(p.aTitle), anchorTokens(p.bTitle));
-  const h1AnchorJ = jaccard(anchorTokens(p.aH1), anchorTokens(p.bH1));
-  const hasTopicAnchor =
-    slugJ >= t.groupTopicAnchor ||
-    titleAnchorJ >= t.groupTopicAnchor ||
-    h1AnchorJ >= t.groupTopicAnchor;
+  const dfIndex = buildDfIndex(pages.map(sigInput), dfCap);
+  const keyOf = new Map<string, TopicKey>();
+  for (const p of pages) keyOf.set(p.url, topicKey(sigInput(p), dfIndex));
 
-  // 2. Body relatedness floor (guards coincidental token matches).
-  const bodyOk = p.sim >= t.groupBodyFloor;
-
-  const group = hasTopicAnchor && bodyOk;
-  return { group, support: group ? ["body", ...support] : support };
-}
-
-/** Back-compat boolean wrapper over evaluatePair. */
-export function shouldGroupPair(p: CandidatePair, t: Thresholds = THRESHOLDS): boolean {
-  return evaluatePair(p, t).group;
-}
-
-class UnionFind {
-  private parent = new Map<string, string>();
-
-  private find(x: string): string {
-    if (!this.parent.has(x)) {
-      this.parent.set(x, x);
-      return x;
+  // Programmatic blog series are pulled OUT of topic clustering and grouped by
+  // their slug template (lib/series.ts) - they fragment under topic overlap.
+  const seriesList = opts.series ?? [];
+  const seriesOf = new Map<string, Series>();
+  if (seriesList.length) {
+    for (const p of pages) {
+      const s = matchSeries(p.url, seriesList);
+      if (s) seriesOf.set(p.url, s);
     }
-    // Walk to the root.
-    let root = x;
-    while (this.parent.get(root) !== root) {
-      root = this.parent.get(root)!;
+  }
+  const topicPages = seriesOf.size ? pages.filter((p) => !seriesOf.has(p.url)) : pages;
+
+  // Deterministic pillar-priority order (hubs first, then URL tiebreak).
+  const ordered = [...topicPages].sort(
+    (a, b) => seedRank(a.type) - seedRank(b.type) || a.url.localeCompare(b.url),
+  );
+
+  interface Seed {
+    page: ClusterPage;
+    key: TopicKey;
+    members: ClusterMember[];
+  }
+  const seeds: Seed[] = [];
+
+  for (const p of ordered) {
+    const key = keyOf.get(p.url)!;
+    let best: { seed: Seed; overlap: number; shared: string[]; body: number | null } | null = null;
+
+    // A page with an empty topic key can only ever seed its own singleton.
+    if (key.unigrams.length || key.bigrams.length) {
+      for (const s of seeds) {
+        const ov = topicOverlap(key, s.key, dfIndex, bigramWeight);
+        if (ov < overlapBar) continue;
+        const body = opts.bodySim?.(s.page.url, p.url) ?? null;
+        if (body != null && body < bodyFloor) continue; // body floor vs seed
+        if (!best || ov > best.overlap) {
+          best = { seed: s, overlap: ov, shared: sharedTopicTerms(key, s.key), body };
+        }
+      }
     }
-    // Path compression: point every node on the path straight at the root.
-    let cur = x;
-    while (cur !== root) {
-      const next = this.parent.get(cur)!;
-      this.parent.set(cur, root);
-      cur = next;
+
+    if (best) {
+      best.seed.members.push({
+        url: p.url,
+        title: p.title,
+        type: p.type,
+        sharedTerms: best.shared,
+        matchSim: Number(best.overlap.toFixed(4)),
+        bodySim: best.body == null ? null : Number(best.body.toFixed(4)),
+        isSeed: false,
+      });
+    } else {
+      seeds.push({
+        page: p,
+        key,
+        members: [
+          {
+            url: p.url,
+            title: p.title,
+            type: p.type,
+            sharedTerms: [...key.bigrams, ...key.unigrams].slice(0, 5),
+            matchSim: 1,
+            bodySim: null,
+            isSeed: true,
+          },
+        ],
+      });
     }
-    return root;
   }
 
-  union(a: string, b: string): void {
-    const ra = this.find(a);
-    const rb = this.find(b);
-    if (ra !== rb) this.parent.set(ra, rb);
+  const clusters: TopicCluster[] = [];
+  const singletons: string[] = [];
+  for (const s of seeds) {
+    if (s.members.length >= minSize) {
+      clusters.push({
+        seedUrl: s.page.url,
+        // Label from what MEMBERS share, not the seed's own tokens - so a
+        // seed-only token (the country in a "skills in demand in {country}"
+        // series) can't dominate ("demand denmark" -> "demand skills").
+        label: clusterLabel(s.members) || topicLabel(s.key) || "(untitled topic)",
+        members: s.members,
+      });
+    } else {
+      for (const m of s.members) singletons.push(m.url);
+    }
   }
 
-  add(x: string): void {
-    if (!this.parent.has(x)) this.parent.set(x, x);
+  // Series clusters: one per matched series, grouped by slug template. Members
+  // belong by construction (matchSim 1, no body floor); the seed is the
+  // cleanest-URL member (a series has no topic pillar).
+  if (seriesOf.size) {
+    const bySeries = new Map<string, ClusterPage[]>();
+    for (const p of pages) {
+      const s = seriesOf.get(p.url);
+      if (s) (bySeries.get(s.name) ?? bySeries.set(s.name, []).get(s.name)!).push(p);
+    }
+    for (const [name, group] of bySeries) {
+      if (group.length < minSize) {
+        for (const p of group) singletons.push(p.url);
+        continue;
+      }
+      const tokens = seriesList.find((s) => s.name === name)?.tokens ?? [name];
+      const ordered = [...group].sort(
+        (a, b) => a.url.length - b.url.length || a.url.localeCompare(b.url),
+      );
+      const seedUrl = ordered[0].url;
+      clusters.push({
+        seedUrl,
+        label: name,
+        isSeries: true,
+        members: ordered.map((p) => ({
+          url: p.url,
+          title: p.title,
+          type: p.type,
+          sharedTerms: tokens,
+          matchSim: 1,
+          bodySim: null,
+          isSeed: p.url === seedUrl,
+        })),
+      });
+    }
   }
 
-  root(x: string): string {
-    return this.find(x);
-  }
+  clusters.sort(
+    (a, b) => b.members.length - a.members.length || a.seedUrl.localeCompare(b.seedUrl),
+  );
+
+  return { clusters, singletons, corpusSize: pages.length, dfIndex };
 }
 
 /**
- * Group nodes into connected components from a list of edges. Returns each
- * component as a sorted array of node ids; singletons (nodes with no edges)
- * are omitted unless passed in `extraNodes`. Components are sorted largest
- * first, then by first member for a stable order.
+ * Cluster label from the tokens members SHARE (not the seed's own key). Tally
+ * every member's shared-with-seed terms, keep those common to a meaningful
+ * share of the cluster, and rank by frequency - so "demand skills" (in all 27
+ * country pages) beats "demand denmark" (only the seed). A seed-only token
+ * never reaches the frequency floor, so it drops out of the label.
  */
-export function connectedComponents(
-  edges: Edge[],
-  extraNodes: string[] = [],
-): string[][] {
-  const uf = new UnionFind();
-  for (const [a, b] of edges) uf.union(a, b);
-  for (const n of extraNodes) uf.add(n);
-
-  const groups = new Map<string, string[]>();
-  const seen = new Set<string>();
-  for (const [a, b] of edges) {
-    for (const node of [a, b]) {
-      if (seen.has(node)) continue;
-      seen.add(node);
-      const r = uf.root(node);
-      const g = groups.get(r) ?? [];
-      g.push(node);
-      groups.set(r, g);
-    }
+function clusterLabel(members: ClusterMember[]): string {
+  const tally = new Map<string, number>();
+  for (const m of members) {
+    for (const term of m.sharedTerms) tally.set(term, (tally.get(term) ?? 0) + 1);
   }
-  for (const n of extraNodes) {
-    if (seen.has(n)) continue;
-    seen.add(n);
-    const r = uf.root(n);
-    const g = groups.get(r) ?? [];
-    g.push(n);
-    groups.set(r, g);
-  }
-
-  return [...groups.values()]
-    .map((g) => g.slice().sort())
-    .sort((a, b) => b.length - a.length || a[0].localeCompare(b[0]));
+  const minFreq = Math.max(2, Math.ceil(members.length * 0.3));
+  const ranked = [...tally.entries()]
+    .filter(([, f]) => f >= minFreq)
+    .sort(
+      (a, b) =>
+        b[1] - a[1] || // most common first
+        (b[0].includes(" ") ? 1 : 0) - (a[0].includes(" ") ? 1 : 0) || // bigrams first
+        b[0].length - a[0].length,
+    )
+    .map(([term]) => term);
+  return labelFromTerms(ranked);
 }
