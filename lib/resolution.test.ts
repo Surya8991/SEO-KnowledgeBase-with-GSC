@@ -85,7 +85,7 @@ test("topic input (url='') never wins as canonical", () => {
 });
 
 test("topic input: lexicalMeta=false ignores title near-dup gate", () => {
-  // High title Jaccard but low body — must NOT force a merge for a topic input.
+  // High title Jaccard but low body - must NOT force a merge for a topic input.
   const r = decidePair(
     page({ url: "" }), page({ url: "https://x.com/scrum" }),
     sig({ body: 0.3, title: 1.0 }),
@@ -159,4 +159,44 @@ test("groupAction: same intent scales with max similarity", () => {
 
 test("groupAction: mixed intent → differentiate regardless of similarity", () => {
   assert.equal(groupAction(0.95, ["commercial", "informational"]), "differentiate");
+});
+
+test("groupAction: large same-type family → differentiate, not merge (§17L)", () => {
+  // 27 same-intent pages with template-inflated body sim = a series, not a pile
+  // to 301 into one page.
+  const many = Array.from({ length: 27 }, () => "informational" as const);
+  assert.equal(groupAction(0.95, many), "differentiate");
+  // A small same-type cluster still merges.
+  assert.equal(groupAction(0.95, ["informational", "informational"]), "merge");
+});
+
+test("groupAction: hub seed + cross-type spokes → pillar", () => {
+  assert.equal(
+    groupAction(0.6, ["commercial", "informational"], undefined, {
+      seedType: "category",
+      memberTypes: ["category", "course", "blog"],
+    }),
+    "pillar",
+  );
+});
+
+test("groupAction: same-type family under a hub seed is NOT pillar", () => {
+  // All members are the same type as the seed → normal ladder applies.
+  assert.equal(
+    groupAction(0.9, ["commercial", "commercial"], undefined, {
+      seedType: "category",
+      memberTypes: ["category", "category"],
+    }),
+    "merge",
+  );
+});
+
+test("groupAction: non-hub seed never yields pillar", () => {
+  assert.equal(
+    groupAction(0.9, ["commercial", "commercial"], undefined, {
+      seedType: "course",
+      memberTypes: ["course", "blog"],
+    }),
+    "merge",
+  );
 });

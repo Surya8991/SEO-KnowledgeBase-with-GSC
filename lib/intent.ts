@@ -1,11 +1,11 @@
 /**
  * Deterministic search-intent classifier (plans/01-conflict-automation.md,
- * Stage 5). Runs per page from its own text — a classifier, not a comparison.
+ * Stage 5). Runs per page from its own text - a classifier, not a comparison.
  *
  * Intent is what a page is FOR, distinct from funnel stage
  * (lib/score-bands.ts intentStage → TOFU/MOFU/BOFU) and from content_type
  * (the page template). Rule-based only: keyword cues first, then a
- * content_type fallback. No LLM — keeps the decision path reproducible.
+ * content_type fallback. No LLM - keeps the decision path reproducible.
  */
 
 export type Intent =
@@ -56,7 +56,7 @@ const CUE_RULES: CueRule[] = [
   },
 ];
 
-// Fallback when no keyword cue fires — the page's content_type is a decent
+// Fallback when no keyword cue fires - the page's content_type is a decent
 // structural prior.
 const CONTENT_TYPE_INTENT: Record<string, Intent> = {
   course: "transactional",
@@ -88,7 +88,7 @@ export interface IntentInput {
 
 export interface IntentResult {
   label: Intent;
-  /** Which cues (or the content_type fallback) drove the label — for "why". */
+  /** Which cues (or the content_type fallback) drove the label - for "why". */
   cues: string[];
 }
 

@@ -2,7 +2,7 @@
  * Pairwise resolution + winner selection (plans/01-conflict-automation.md,
  * Stages 7-8) for the live Conflict Checker: input page vs one matched page.
  *
- * Every branch is a numeric check against lib/thresholds.ts — no judgment
+ * Every branch is a numeric check against lib/thresholds.ts - no judgment
  * calls. Cluster-level resolution (Stage 6+) reuses these same primitives in
  * a later phase.
  */
@@ -25,14 +25,18 @@ export type ResolutionAction =
   | "merge" // near-duplicate, same intent → 301 the loser into the winner
   | "consolidate" // strong overlap, same intent → keep winner, re-link others
   | "differentiate" // some overlap, same intent → rewrite to separate them
-  | "keep-both"; // different intent → no conflict
+  | "keep-both" // different intent → no conflict
+  | "pillar"; // hub seed + spokes of other types → link spokes to the pillar
+
+/** Content types that act as a topic pillar (Content Clusters, PROJECTLOG §17). */
+const PILLAR_TYPES = new Set(["category", "subcategory", "excellence-program"]);
 
 /** Inputs to score a single page's authority (Stage 8 winner selection). */
 export interface AuthorityInput {
   url: string;
   /** Internal inbound-link count (lib/inbound-links.fetchInboundCounts). */
   inbound: number;
-  /** Content depth proxy — token/word count. */
+  /** Content depth proxy - token/word count. */
   tokenCount: number | null;
   /** Organic traffic (pages.gsc_clicks_28d). Weighted 0 by default. */
   clicks?: number | null;
@@ -40,7 +44,7 @@ export interface AuthorityInput {
 
 /** URL cleanliness in [0,1]: shorter, shallower paths score higher. */
 export function urlCleanliness(url: string): number {
-  // An absent URL (topic input) is NOT a clean page — it's not a page at all.
+  // An absent URL (topic input) is NOT a clean page - it's not a page at all.
   // Return 0 so a topic input can never win a tie on cleanliness (see pickWinner).
   if (!url) return 0;
   // Uses raw path depth (segment count), independent of stopword filtering,
@@ -76,7 +80,7 @@ export function pageAuthority(
 
 /** Pick the higher-authority page; ties broken by cleaner URL, then URL string.
  *  A page with no URL (a topic input, not yet published) can never win over a
- *  real page — it isn't a canonical target. */
+ *  real page - it isn't a canonical target. */
 export function pickWinner(
   a: AuthorityInput,
   b: AuthorityInput,
@@ -131,14 +135,14 @@ export function decidePair(
   if (inputIntent !== matchIntent) {
     return {
       action: "keep-both",
-      reason: `Different intent (${inputIntent} vs ${matchIntent}) — no conflict.`,
+      reason: `Different intent (${inputIntent} vs ${matchIntent}) - no conflict.`,
     };
   }
 
   // Course↔course template-noise gate. A pair of catalog courses is "the same
   // offering" only at the hard bar, or the softer bar with near-matching
   // titles. Distinct offerings (Express.js vs Node.js: body ~0.74-0.90 via
-  // template, title Jaccard 0.5) are curated as different products — no merge.
+  // template, title Jaccard 0.5) are curated as different products - no merge.
   if (types?.input === "course" && types?.match === "course") {
     const sameOffering =
       signals.body >= t.groupSimCourse ||
@@ -148,7 +152,7 @@ export function decidePair(
     if (!sameOffering) {
       return {
         action: "keep-both",
-        reason: `Distinct course offerings — ${(signals.body * 100).toFixed(0)}% body similarity is mostly shared course-template boilerplate.`,
+        reason: `Distinct course offerings - ${(signals.body * 100).toFixed(0)}% body similarity is mostly shared course-template boilerplate.`,
       };
     }
   }
@@ -180,7 +184,7 @@ export function decidePair(
   if (signals.body < t.noConflictFloor) {
     return {
       action: "keep-both",
-      reason: `Same intent but only ${(signals.body * 100).toFixed(0)}% body overlap — not a conflict.`,
+      reason: `Same intent but only ${(signals.body * 100).toFixed(0)}% body overlap - not a conflict.`,
     };
   }
 
@@ -192,21 +196,47 @@ export function decidePair(
 }
 
 /**
- * Cluster-level action (Stage 7) for a group of ≥2 similar pages. Uses the
- * strongest pairwise similarity in the group and whether every member shares
- * one intent:
+ * Cluster-level action for a group of ≥2 similar pages.
+ *
+ * For topic clusters (Content Clusters, PROJECTLOG §17) a healthy family is a
+ * hub pillar + cross-type spokes - merge/differentiate don't apply, so when the
+ * seed is a pillar type and the group mixes in other types the action is
+ * `pillar` ("link spokes to the pillar"). Otherwise it falls back to the
+ * intent/similarity ladder for same-type near-duplicates:
  *   - mixed intent            → differentiate (they serve different searchers)
+ *   - large same-type family  → differentiate (a content series, not a pile to
+ *                               301 into one - see below)
  *   - same intent, maxSim≥merge      → merge (collapse into the winner)
  *   - same intent, maxSim≥consolidate → consolidate
  *   - else                    → differentiate
+ *
+ * The large-family guard (PROJECTLOG §17L): a big same-type cluster is almost
+ * always a SERIES - "skills in demand in {country}" ×27, "{role} roles &
+ * responsibilities" ×13 - whose members target different searchers and rank
+ * independently. "Merge → 301" there is actively harmful advice (redirecting 26
+ * distinct pages into one destroys their rankings). Body cosine can't tell a
+ * series from a dup pile because it's template-inflated (the whole reason the
+ * clustering moved to topic tokens), so we gate merge/consolidate on size:
+ * only small clusters (≤ groupMergeMaxSize) are collapse candidates.
  */
 export function groupAction(
   maxBodySim: number,
   intents: Intent[],
   t: Thresholds = THRESHOLDS,
+  /** Optional cluster shape - enables the pillar/spoke action for topic clusters. */
+  shape?: { seedType?: string | null; memberTypes?: (string | null)[] },
 ): ResolutionAction {
+  if (
+    shape?.seedType &&
+    PILLAR_TYPES.has(shape.seedType) &&
+    (shape.memberTypes ?? []).some((mt) => mt && mt !== shape.seedType)
+  ) {
+    return "pillar";
+  }
   const sameIntent = intents.length > 0 && intents.every((i) => i === intents[0]);
   if (!sameIntent) return "differentiate";
+  // A large same-type family is a series, not a 301-able dup pile.
+  if (intents.length > t.groupMergeMaxSize) return "differentiate";
   if (maxBodySim >= t.bodyCosineMerge) return "merge";
   if (maxBodySim >= t.bodyCosineConsolidate) return "consolidate";
   return "differentiate";
