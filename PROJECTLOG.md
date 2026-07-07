@@ -11,7 +11,7 @@
 > and how the system fits together. Update this file with every meaningful
 > change.
 
-**Last updated:** 2026-07-06 (Session 12 — Content Clusters topic-first logic rewrite; Group 4 shipped w/ known clusters-page render bug)
+**Last updated:** 2026-07-06 (Session 13 — adopt upstream leader-clustering engine + Groq resilience + ingest/redirect fix; clusters-page render bug narrowed to route-not-page)
 **Repo:** https://github.com/Surya8991/SEO-KnowledgeBase-with-GSC
 
 ---
@@ -1767,3 +1767,59 @@ Scoring primitives, CSV export/import, `detect-redirects`, and the live
 per-check signal wiring (`conflict.ts` + `search.ts` + checker-page strip). The
 conflict-checker page and the scoring API are verified; the clusters page has the
 render bug above.
+
+---
+
+## 18. Session 13 — adopt upstream's better clustering engine + resilience wins (2026-07-06)
+
+Re-checked the upstream for further copyable work and found it had solved the
+exact §17D follow-ups. Ported them across two PRs.
+
+### 18A. Tier 2 — self-contained wins (merged, PR #6)
+- **Groq key rotation + model fallback** (`lib/ai/chat-groq.ts` + 6 tests):
+  `GROQ_API_KEYS` pool; on 429 rotate keys → fall back to `GROQ_FALLBACK_MODEL`
+  → throw; non-429s not swallowed; exhausted key+model combos cool down.
+- **Ingest/redirect reconciliation** (§17H): `ingest.ts` no longer stores a
+  redirect target's content under the stale source URL (was resurrecting stale
+  pages as duplicates); `detect-redirects.ts` now classifies redirect/dead/live,
+  marks 4xx/5xx, and **heals** pages that probe 200 again (H5 guard re-added).
+
+### 18B. Tier 1 — topic-token leader clustering engine (this PR)
+Replaces the connected-components approach from §17 (my PR #5) with the
+upstream's **center-based, DF-denoised** engine:
+- **`lib/signals.ts`** (104 → 292 lines): document-frequency term-weighting —
+  `buildDfIndex` auto-learns template vocabulary ("training", "corporate")
+  from the corpus (≥5% DF cap) and drops it, so lexical bars stop lighting up
+  on pure template matches. `signalScores` gains an optional `df` param
+  (backward-compatible — `conflict.ts`/`resolution.ts` unchanged).
+- **`lib/cluster.ts`**: `clusterByTopic` — each page joins the best-scoring
+  pillar-priority **seed** by IDF-weighted distinctive-token overlap. No ANN
+  top-k, **no transitive chaining**, no type filter. `seedRank` puts hubs
+  (category/subcategory) before courses before blogs.
+- **`lib/series.ts`** (new): programmatic blog **series** (e.g. every
+  `*-training-companies` listicle) grouped by slug template, separate from
+  topic clusters.
+- **`app/api/groups/route.ts`**: whole-corpus topic scan + a batched (seed,
+  member) cosine body-floor pass + per-instance response cache (`?fresh=1`
+  bypass). Re-hardened with `gateLlmEndpoint` + `errorResponse`.
+- **`app/(dashboard)/clusters/page.tsx`**: topic-label UI, singleton list,
+  "show intent" toggle.
+- `intent.ts`/`resolution.ts` adopted too (public APIs unchanged → `conflict.ts`
+  stays compatible). Tests: `signals`/`cluster`/`series`/`intent`/`resolution`
+  suites (node:test → vitest). **130 tests green**, lint 0/0.
+
+**Verified live (read-only, 2,458-page corpus):** no mega-clusters (top sizes
+~60/54/48, median 2); labeled topic clusters ("sales", "risk") and separate
+series clusters ("Training Companies", "Roles & Responsibilities"). Note: the
+big-data *blog* now lands in the `*-training-companies` **series** rather than a
+big-data topic cluster — the series feature is deliberate.
+
+### 18C. Clusters PAGE render bug — narrowed, still open
+The `/clusters` page still renders only the `loading.tsx` skeleton (client
+effect never fires, zero `/api/groups` calls) — **reproduced identically with
+BOTH the old page and the upstream's rewritten page**, while `/catalog-conflicts`
+(a pre-existing client page) hydrates fine on the same server (dev AND prod
+build). So the bug is **route/environment-specific, NOT page-code**. No
+console/network/build error surfaces through the preview harness; it needs a
+local browser-devtools session. The engine + API are fully verified; the UI is
+not usable until this is cracked.

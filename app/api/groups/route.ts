@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 import { neonRows } from "@/lib/db";
-import { connectedComponents, evaluatePair, type Edge, type EvidenceSignal } from "@/lib/cluster";
+import { clusterByTopic, type ClusterPage } from "@/lib/cluster";
+import { SERIES } from "@/lib/series";
 import { classifyIntent, type Intent } from "@/lib/intent";
 import { pageAuthority, pickWinner, groupAction, type AuthorityInput } from "@/lib/resolution";
 import { THRESHOLDS } from "@/lib/thresholds";
@@ -13,31 +14,38 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * GET /api/groups — Content Clusters: group similar pages across the WHOLE
- * corpus (Stage 6+7+8 of plans/01-conflict-automation.md, precision rules in
- * PROJECTLOG §15G).
+ * GET /api/groups — Content Clusters: group the WHOLE corpus by TOPIC
+ * (PROJECTLOG §17, replacing the body-embedding connected-components approach
+ * that chained different topics into one mega-cluster).
  *
  * Pipeline:
- *  1. One pgvector top-k lateral join over every LIVE embedded page. Pages that
- *     redirect / are canonicalized elsewhere (marked by scripts/detect-redirects.ts
- *     via canonical_url + is_stale) are excluded on BOTH sides — a 301 and its
- *     target must never appear as a "duplicate pair".
- *  2. Type-aware edge gating (lib/cluster shouldGroupPair): same-type only;
- *     course↔course needs the high template-noise bar; editorial types group
- *     at the lower threshold.
- *  3. Connected components → per-cluster winner + action + per-member
- *     "% match to nearest cluster-mate" (the *why grouped*).
+ *  1. Load every LIVE embedded page's title/H1/URL/type. Pages that redirect or
+ *     are canonicalized elsewhere (scripts/detect-redirects.ts) are excluded.
+ *  2. Center-based topic clustering (lib/cluster.clusterByTopic): each page
+ *     joins the best-scoring pillar-priority seed by IDF-weighted distinctive-
+ *     token overlap. NO ANN top-k, NO transitive chaining, NO type filter — a
+ *     category, its blog, and its courses cluster together across types.
+ *  3. Body floor: one batched cosine query over the (seed, member) pairs the
+ *     clustering produced; members below CONFLICT_TOPIC_BODY_FLOOR vs their seed
+ *     are demoted to unique-topic singletons.
+ *  4. Per-cluster topic label + suggested action (pillar for hub+spokes) +
+ *     winner + per-member shared topic tokens ("why grouped").
  *
- * Query: ?threshold (overrides non-course bar) ?topK ?minSize ?limit.
- * Gated with gateLlmEndpoint: this runs a corpus-wide pgvector scan, so it is
- * rate-limited / key-gated rather than relying on the proxy session gate
- * (a no-op when AUTH_ENABLED=false).
+ * Query: ?overlap (topic-overlap bar) ?minSize ?limit ?fresh.
+ * Gated with gateLlmEndpoint: this runs a whole-corpus scan + batched cosine,
+ * so it is rate-limited / key-gated rather than relying on the proxy session
+ * gate (a no-op when AUTH_ENABLED=false).
  */
-interface PairRow {
-  a_url: string; a_title: string | null; a_type: string | null; a_tok: number | null;
-  a_h1: string | null; a_desc: string | null;
-  b_url: string; b_title: string | null; b_type: string | null; b_tok: number | null;
-  b_h1: string | null; b_desc: string | null;
+interface PageRow {
+  url: string;
+  title: string | null;
+  h1: string | null;
+  content_type: string | null;
+  token_count: number | null;
+}
+interface SimRow {
+  seed_url: string;
+  member_url: string;
   sim: number;
 }
 
@@ -47,169 +55,210 @@ const LIVE = (alias: string) =>
    AND (${alias}.canonical_url IS NULL
         OR rtrim(${alias}.canonical_url, '/') = rtrim(${alias}.url, '/'))`;
 
+const bkey = (seed: string, member: string) => `${seed} ${member}`;
+
+/** Max singleton (unique-topic) pages returned for the browsable list. */
+const SINGLETON_CAP = 500;
+
+/**
+ * Per-instance response cache. The full scan is 15-40s (whole-corpus fetch +
+ * batched cosine) and the corpus changes rarely, so repeat visits within the
+ * TTL return instantly. The Rescan button bypasses it with ?fresh=1.
+ */
+let groupsCache: { key: string; at: number; body: Record<string, unknown> } | null = null;
+const GROUPS_CACHE_TTL = 5 * 60 * 1000;
+
 export async function GET(request: NextRequest) {
   const gate = await gateLlmEndpoint(request, "groups", { max: 15, windowSec: 60 });
   if (gate) return gate;
   try {
     const p = new URL(request.url).searchParams;
-    const overrideThr = Number(p.get("threshold"));
-    const t = Number.isFinite(overrideThr) && overrideThr > 0
-      ? { ...THRESHOLDS, groupSimilarity: clamp(overrideThr, 0.5, 0.99) }
-      : THRESHOLDS;
-    const topK = Math.min(Math.max(Number(p.get("topK")) || t.groupTopK, 1), 20);
+    const t = THRESHOLDS;
+    const overrideOverlap = Number(p.get("overlap"));
+    const overlap =
+      Number.isFinite(overrideOverlap) && overrideOverlap > 0
+        ? clamp(overrideOverlap, 0.1, 0.95)
+        : t.topicOverlap;
+    const overrideFloor = Number(p.get("floor"));
+    const floor =
+      Number.isFinite(overrideFloor) && overrideFloor > 0
+        ? clamp(overrideFloor, 0.3, 0.95)
+        : t.topicBodyFloor;
     const minSize = Math.max(2, Number(p.get("minSize")) || 2);
-    const limit = Math.min(Math.max(Number(p.get("limit")) || 100, 1), 500);
-    // Fetch down to the body-relatedness floor; evaluatePair then requires a
-    // real topic anchor (slug/title/H1 overlap). Lower than the old same-type
-    // bar so a category listing and a blog on the SAME topic (different formats
-    // → moderate body cosine) become candidate pairs.
-    const fetchBar = t.groupBodyFloor;
+    const limit = clamp(Number(p.get("limit")) || 100, 1, 500);
+
+    const cacheKey = `${overlap}|${floor}|${minSize}|${limit}`;
+    if (
+      !p.get("fresh") &&
+      groupsCache &&
+      groupsCache.key === cacheKey &&
+      Date.now() - groupsCache.at < GROUPS_CACHE_TTL
+    ) {
+      return NextResponse.json({ ...groupsCache.body, cached: true });
+    }
 
     const client = neon(process.env.DATABASE_URL || "postgresql://user:password@localhost/db");
-    const rawPairs = neonRows<PairRow>(await client.query(
-      `SELECT p1.url a_url, p1.title a_title, p1.content_type a_type, p1.token_count a_tok,
-              p1.h1 a_h1, p1.meta_description a_desc,
-              p2.url b_url, p2.title b_title, p2.content_type b_type, p2.token_count b_tok,
-              p2.h1 b_h1, p2.meta_description b_desc,
-              1 - (p1.embedding <=> p2.embedding) sim
-       FROM pages p1
-       CROSS JOIN LATERAL (
-         SELECT id, url, title, content_type, token_count, h1, meta_description, embedding
-         FROM pages p2
-         WHERE p2.embedding IS NOT NULL AND p2.id <> p1.id
-           AND ${LIVE("p2")}
-         ORDER BY p1.embedding <=> p2.embedding
-         LIMIT $2
-       ) p2
-       WHERE p1.embedding IS NOT NULL
-         AND ${LIVE("p1")}
-         AND 1 - (p1.embedding <=> p2.embedding) >= $1`,
-      [fetchBar, topK],
-    ));
 
-    const corpusSize = neonRows<{ n: number }>(
+    // 1. Every live embedded page. Topic keying needs title/H1/URL; the body
+    //    floor needs the embedding (so we require it here too).
+    const rows = neonRows<PageRow>(
       await client.query(
-        `SELECT count(*)::int n FROM pages p WHERE p.embedding IS NOT NULL AND ${LIVE("p")}`,
+        `SELECT url, title, h1, content_type, token_count
+         FROM pages p
+         WHERE embedding IS NOT NULL AND ${LIVE("p")}`,
       ),
-    )[0]?.n ?? 0;
+    );
+    const corpusSize = rows.length;
+    const meta = new Map(rows.map((r) => [r.url, r]));
+    const pages: ClusterPage[] = rows.map((r) => ({
+      url: r.url,
+      title: r.title,
+      h1: r.h1,
+      type: r.content_type,
+      tokenCount: r.token_count,
+    }));
 
-    // Dedupe undirected pairs, then apply the multi-signal evidence gates.
-    const seen = new Set<string>();
-    const pairs: PairRow[] = [];
-    const pairSupport: EvidenceSignal[][] = [];
-    for (const r of rawPairs) {
-      const key = r.a_url < r.b_url ? `${r.a_url} ${r.b_url}` : `${r.b_url} ${r.a_url}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const ev = evaluatePair(
-        {
-          aType: r.a_type, bType: r.b_type,
-          aTitle: r.a_title, bTitle: r.b_title,
-          aH1: r.a_h1, bH1: r.b_h1,
-          aDescription: r.a_desc, bDescription: r.b_desc,
-          aUrl: r.a_url, bUrl: r.b_url,
-          sim: Number(r.sim),
-        },
-        t,
+    // 2. First pass: topic clusters + programmatic blog series (body floor not
+    //    yet applied). Series pages are grouped by slug template, not topic.
+    const pass1 = clusterByTopic(pages, { overlap, minSize: 2, series: SERIES }, t);
+
+    // 3. Body cosine for every (seed, member) pair — one batched query. Uses the
+    //    raw neon client with positional $1::text[] params (drizzle's sql`` would
+    //    mis-expand a JS array — AGENTS.md gotcha). Series clusters are excluded:
+    //    they belong by slug template and never face the body floor.
+    const seedUrls: string[] = [];
+    const memberUrls: string[] = [];
+    for (const c of pass1.clusters) {
+      if (c.isSeries) continue;
+      for (const m of c.members) {
+        if (m.url === c.seedUrl) continue;
+        seedUrls.push(c.seedUrl);
+        memberUrls.push(m.url);
+      }
+    }
+    const bodyMap = new Map<string, number>();
+    if (seedUrls.length) {
+      const sims = neonRows<SimRow>(
+        await client.query(
+          `SELECT s.url seed_url, m.url member_url, 1 - (s.embedding <=> m.embedding) sim
+           FROM unnest($1::text[], $2::text[]) AS pair(seed_url, member_url)
+           JOIN pages s ON s.url = pair.seed_url
+           JOIN pages m ON m.url = pair.member_url
+           WHERE s.embedding IS NOT NULL AND m.embedding IS NOT NULL`,
+          [seedUrls, memberUrls],
+        ),
       );
-      if (!ev.group) continue;
-      pairs.push(r);
-      pairSupport.push(ev.support);
+      for (const r of sims) bodyMap.set(bkey(r.seed_url, r.member_url), Number(r.sim));
     }
 
-    if (pairs.length === 0) {
-      return NextResponse.json({
-        groups: [], totalGroups: 0, totalPairs: 0, corpusSize,
-        groupedPages: 0, threshold: t.groupSimilarity,
+    // 4. Apply the body floor: demote members below it (vs their seed) to
+    //    singletons; a cluster that drops under minSize dissolves entirely.
+    let groupedPages = 0;
+    const singletonUrls: string[] = [...pass1.singletons];
+
+    const groups = pass1.clusters
+      .map((c) => {
+        const kept = c.members.filter((m) => {
+          if (m.url === c.seedUrl) return true;
+          const bs = bodyMap.get(bkey(c.seedUrl, m.url));
+          return bs == null || bs >= floor; // no data → keep (can't disprove)
+        });
+        const demotedMembers = c.members.filter((m) => !kept.includes(m));
+        return { c, kept, demotedMembers };
+      })
+      .filter(({ c, kept }) => {
+        if (kept.length >= minSize) return true;
+        for (const m of c.members) singletonUrls.push(m.url); // whole cluster dissolves
+        return false;
+      })
+      .map(({ c, kept, demotedMembers }) => {
+        for (const m of demotedMembers) singletonUrls.push(m.url);
+        groupedPages += kept.length;
+
+        const seedType = meta.get(c.seedUrl)?.content_type ?? null;
+        const memberTypes = kept.map((m) => m.type);
+        const intents: Intent[] = kept.map((m) =>
+          classifyIntent({ title: m.title, slug: m.url, contentType: m.type }).label,
+        );
+        const authorities: AuthorityInput[] = kept.map((m) => ({
+          url: m.url,
+          inbound: 0, // O(members×corpus); intentionally skipped at this scale
+          tokenCount: meta.get(m.url)?.token_count ?? null,
+          clicks: null,
+        }));
+
+        const bodySims = kept
+          .map((m) => (m.url === c.seedUrl ? null : bodyMap.get(bkey(c.seedUrl, m.url)) ?? null))
+          .filter((x): x is number => x != null);
+        const maxBodySim = bodySims.length ? Math.max(...bodySims) : 0;
+        // A programmatic series is always "differentiate" (intentional variants).
+        const action = c.isSeries
+          ? "differentiate"
+          : groupAction(maxBodySim, intents, t, { seedType, memberTypes });
+
+        // Winner: for a pillar cluster the pillar (seed) IS the canonical
+        // target, so the ★ must be the seed - otherwise "link spokes to the
+        // pillar" and the highlighted winner would point at different pages.
+        // For merge/consolidate/differentiate, pick by authority.
+        const winner =
+          action === "pillar"
+            ? authorities.find((a) => a.url === c.seedUrl) ??
+              authorities.reduce((best, cur) => pickWinner(best, cur))
+            : authorities.reduce((best, cur) => pickWinner(best, cur));
+
+        const members = kept
+          .map((m, i) => ({
+            url: m.url,
+            title: m.title,
+            type: m.type,
+            intent: intents[i],
+            matchSim: m.matchSim, // IDF-weighted topic overlap vs seed
+            bodySim: m.url === c.seedUrl ? null : bodyMap.get(bkey(c.seedUrl, m.url)) ?? null,
+            sharedTerms: m.sharedTerms,
+            authority: Number(pageAuthority(authorities[i]).toFixed(4)),
+            isWinner: m.url === winner.url,
+            isSeed: m.url === c.seedUrl,
+          }))
+          .sort(
+            (a, b) =>
+              (b.isWinner ? 1 : 0) - (a.isWinner ? 1 : 0) ||
+              (b.isSeed ? 1 : 0) - (a.isSeed ? 1 : 0) ||
+              b.matchSim - a.matchSim,
+          );
+
+        return {
+          size: kept.length,
+          label: c.label,
+          seedUrl: c.seedUrl,
+          action,
+          isSeries: !!c.isSeries,
+          winnerUrl: winner.url,
+          maxBodySim: Number(maxBodySim.toFixed(4)),
+          members,
+        };
       });
-    }
 
-    // Metadata + per-member strongest match (the "why grouped" number) and the
-    // evidence signals of that strongest edge (the "why grouped" tags).
-    const meta = new Map<string, { title: string | null; type: string | null; tokens: number | null }>();
-    const nearestSim = new Map<string, number>();
-    const evidence = new Map<string, EvidenceSignal[]>();
-    pairs.forEach((r, i) => {
-      if (!meta.has(r.a_url)) meta.set(r.a_url, { title: r.a_title, type: r.a_type, tokens: r.a_tok });
-      if (!meta.has(r.b_url)) meta.set(r.b_url, { title: r.b_title, type: r.b_type, tokens: r.b_tok });
-      const s = Number(r.sim);
-      if (s > (nearestSim.get(r.a_url) ?? 0)) { nearestSim.set(r.a_url, s); evidence.set(r.a_url, pairSupport[i]); }
-      if (s > (nearestSim.get(r.b_url) ?? 0)) { nearestSim.set(r.b_url, s); evidence.set(r.b_url, pairSupport[i]); }
-    });
+    groups.sort((a, b) => b.size - a.size || a.label.localeCompare(b.label));
 
-    // Connected components over the gated pair graph.
-    const edges: Edge[] = pairs.map((r) => [r.a_url, r.b_url] as Edge);
-    const components = connectedComponents(edges).filter((g) => g.length >= minSize);
-    const groupOf = new Map<string, number>();
-    components.forEach((urls, gi) => urls.forEach((u) => groupOf.set(u, gi)));
+    // Browsable sample of unique-topic pages (capped) so "N unique-topic pages"
+    // isn't a dead-end stat.
+    const singletons = singletonUrls.slice(0, SINGLETON_CAP).map((url) => ({
+      url,
+      title: meta.get(url)?.title ?? null,
+      type: meta.get(url)?.content_type ?? null,
+    }));
 
-    // Max intra-group similarity — bucketed by component.
-    const maxSim = new Array(components.length).fill(0);
-    for (const r of pairs) {
-      const gi = groupOf.get(r.a_url);
-      if (gi === undefined || groupOf.get(r.b_url) !== gi) continue;
-      if (Number(r.sim) > maxSim[gi]) maxSim[gi] = Number(r.sim);
-    }
-
-    // NOTE: inbound-link authority is intentionally NOT computed here —
-    // fetchInboundCounts is O(members × corpus) and times out at this scale.
-    // Cluster winners use content depth + URL cleanliness.
-    const groups = components.map((urls, gi) => {
-      const authorities: AuthorityInput[] = urls.map((url) => ({
-        url,
-        inbound: 0,
-        tokenCount: meta.get(url)?.tokens ?? null,
-        clicks: null,
-      }));
-      const winner = authorities.reduce((best, cur) => pickWinner(best, cur));
-
-      const intents: Intent[] = urls.map((url) => {
-        const m = meta.get(url);
-        return classifyIntent({ title: m?.title, slug: url, contentType: m?.type }).label;
-      });
-      const action = groupAction(maxSim[gi], intents);
-      // Groups are now topic-anchored and can span content types (e.g. a
-      // category listing + a blog on the same topic), so describe that.
-      const types = Array.from(new Set(urls.map((u) => meta.get(u)?.type).filter(Boolean))) as string[];
-      const typeLabel = types.length === 1 ? `${types[0]} pages` : `pages across ${types.length} content types`;
-      const sameIntent = intents.every((x) => x === intents[0]);
-      const reason = `${urls.length} ${typeLabel} on the same topic, up to ${(maxSim[gi] * 100).toFixed(0)}% content overlap${
-        sameIntent ? ` and the same ${intents[0]} intent` : ", mixed search intent"
-      }.`;
-
-      const members = urls
-        .map((url, i) => ({
-          url,
-          title: meta.get(url)?.title ?? null,
-          type: meta.get(url)?.type ?? null,
-          intent: intents[i],
-          matchSim: Number((nearestSim.get(url) ?? 0).toFixed(4)),
-          evidence: evidence.get(url) ?? [],
-          authority: Number(pageAuthority(authorities[i]).toFixed(4)),
-          isWinner: url === winner.url,
-        }))
-        .sort((a, b) => (b.isWinner ? 1 : 0) - (a.isWinner ? 1 : 0) || b.matchSim - a.matchSim);
-
-      return {
-        size: urls.length,
-        maxSimilarity: Number(maxSim[gi].toFixed(4)),
-        action,
-        winnerUrl: winner.url,
-        reason,
-        members,
-      };
-    });
-
-    groups.sort((a, b) => b.size - a.size || b.maxSimilarity - a.maxSimilarity);
-
-    return NextResponse.json({
+    const body = {
       totalGroups: groups.length,
-      totalPairs: pairs.length,
       corpusSize,
-      groupedPages: groupOf.size,
-      threshold: t.groupSimilarity,
+      groupedPages,
+      singletonCount: singletonUrls.length,
+      singletons,
+      overlap,
       groups: groups.slice(0, limit),
-    });
+    };
+    groupsCache = { key: cacheKey, at: Date.now(), body };
+    return NextResponse.json(body);
   } catch (e) {
     return errorResponse("/api/groups", e, { status: 500, publicMessage: "Failed to compute clusters.", extra: { groups: [] } });
   }
